@@ -117,7 +117,7 @@ def compute_mlm(pl_module, batch):
 
 
 def compute_clm(pl_module, batch):
-    infer = pl_module._forward(batch, mask_text=True)
+    infer = pl_module.infer(batch)
     clm_logits = pl_module.clm_score(infer["text_feats"])
     clm_labels = infer["text_labels"]
 

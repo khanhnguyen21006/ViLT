@@ -9,6 +9,7 @@ from vilt.modules.linear import GehringLinear
 from vilt.modules.attention import MultiHeadAttention
 from vilt.modules.convolution import LightweightConv1dTBC, DynamicConv1dTBC
 from vilt.modules import tat_heads, objectives, tat_utils, vilt_utils
+from .resnet import resnet152
 
 
 class TransformAndTell(pl.LightningModule):
@@ -16,6 +17,8 @@ class TransformAndTell(pl.LightningModule):
         super().__init__()
         self.save_hyperparameters()
 
+        self.resnet = resnet152()
+        self.roberta = torch.hub.load('pytorch/fairseq:2f7e3f3323', 'roberta.large')
         self.decoder = DynamicConvDecoder(config['embed_size'], config['embed_output_dim'], config['padding_idx'], config['init_size'], config['left_pad'],
                                           config['dropout'], config['decoder_conv_dim'], config['decoder_glu'], config['decoder_conv_type'],
                                           config['weight_softmax'], config['decoder_attention_heads'], config['weight_dropout'],
