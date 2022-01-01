@@ -20,7 +20,7 @@ class WitDataset(Dataset):
             max_text_len: int,
             draw_false_image: int = 0,
     ):
-        assert split in ["train", "val", "test"]
+        assert split in ["TRAIN", "VAL", "TEST"]
         self.split = split
         self.data_dir = data_dir
         self.transforms = keys_to_wit_transforms(transform_keys)
@@ -33,10 +33,10 @@ class WitDataset(Dataset):
         with open(os.path.join(self.data_dir, split + '_IMAGEIDS_wit_100_min_word_freq.json'), 'r') as j:
             self.image_ids = json.load(j)
 
-        with open(os.path.join(self.data_dir, split + '_STRDESCS_wit_100_min_word_freq.json'), 'r') as j:
+        with open(os.path.join(self.data_dir, split + '_RAWSTRDESCS_wit_100_min_word_freq.json'), 'r') as j:
             self.str_descriptions = json.load(j)
 
-        with open(os.path.join(self.data_dir, split + '_STRCAPS_wit_100_min_word_freq.json'), 'r') as j:
+        with open(os.path.join(self.data_dir, split + '_RAWSTRCAPS_wit_100_min_word_freq.json'), 'r') as j:
             self.str_captions = json.load(j)
 
         self.dataset_size = len(self.str_captions)

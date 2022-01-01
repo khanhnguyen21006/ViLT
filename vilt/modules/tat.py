@@ -24,19 +24,19 @@ class TransformAndTell(pl.LightningModule):
                                           config['decoder_layers'], config['final_norm'], config['vocab_size'], config['article_embed_size'])
         self.padding_idx = config['padding_idx']
         self.decoder.apply(self.init_weights)
-        self.pooler = tat_heads.WitPooler(config["hidden_size"])
+        self.pooler = tat_heads.WitPooler(config["embed_output_dim"])
         self.pooler.apply(self.init_weights)
 
         if config["loss_names"]["clm"] > 0:
             bert_config = BertConfig(
                 vocab_size=config["vocab_size"],
-                hidden_size=config["hidden_size"],
+                hidden_size=config["embed_output_dim"],
             )
             self.clm_score = tat_heads.CLMHead(bert_config)
             self.clm_score.apply(self.init_weights)
 
         if config["loss_names"]["itm"] > 0:
-            self.itm_score = tat_heads.ITMHead(config["hidden_size"])
+            self.itm_score = tat_heads.ITMHead(config["embed_output_dim"])
             self.itm_score.apply(self.init_weights)
 
         vilt_utils.set_metrics(self)

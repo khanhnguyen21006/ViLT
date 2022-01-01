@@ -63,7 +63,7 @@ class WitDataModule(LightningDataModule):
         self.train_dataset = self.dataset_cls(
             data_dir=self.data_dir,
             transform_keys=self.train_transform_keys,
-            split="train",
+            split="TRAIN",
             max_text_len=self.max_text_len
         )
 
@@ -71,14 +71,16 @@ class WitDataModule(LightningDataModule):
         self.val_dataset = self.dataset_cls(
             data_dir=self.data_dir,
             transform_keys=self.train_transform_keys,
-            split="val",
+            split="VAL",
+            max_text_len=self.max_text_len
         )
 
     def set_test_dataset(self):
         self.test_dataset = self.dataset_cls(
             data_dir=self.data_dir,
             transform_keys=self.train_transform_keys,
-            split="test",
+            split="TEST",
+            max_text_len=self.max_text_len
         )
 
     def train_dataloader(self):
