@@ -68,6 +68,7 @@ class WitDataModule(LightningDataModule):
             data_dir=self.data_dir,
             transform_keys=self.train_transform_keys,
             split="train",
+            max_text_len=self.max_text_len
         )
 
     def set_val_dataset(self):

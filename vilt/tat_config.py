@@ -93,8 +93,7 @@ def task_mlm_itm():
     loss_names = _loss_names({"itm": 1, "clm": 1})
     batch_size = 4
     max_epoch = 10
-    max_image_len = 200
-
+    max_text_len = 512
 
 @ex.named_config
 def task_mlm_itm_randaug():
