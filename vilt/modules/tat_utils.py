@@ -203,7 +203,7 @@ def _get_full_incremental_state_key(module_instance, key):
     return '{}.{}.{}'.format(module_name, module_instance._fairseq_instance_id, key)
 
 
-def get_wincremental_state(module, incremental_state, key):
+def get_incremental_state(module, incremental_state, key):
     """Helper for getting incremental state for an nn.Module."""
     full_key = _get_full_incremental_state_key(module, key)
     if incremental_state is None or full_key not in incremental_state:

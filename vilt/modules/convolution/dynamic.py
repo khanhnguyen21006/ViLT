@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from tell.utils import get_incremental_state, set_incremental_state
+from vilt.modules.tat_utils import get_incremental_state, set_incremental_state
 
 from .unfold import unfold1d
 

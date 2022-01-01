@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from tell.modules.linear import GehringLinear
+from vilt.modules.linear import GehringLinear
 
 from .scalar_bias import scalar_bias
 

@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from tell.modules.linear import GehringLinear
+from vilt.modules.linear import GehringLinear
 
 from .downsampled_single_head import SingleHeadAttention
 

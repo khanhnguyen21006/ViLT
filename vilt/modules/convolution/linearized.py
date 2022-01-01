@@ -8,7 +8,7 @@
 import torch
 import torch.nn.functional as F
 
-from tell.utils import get_incremental_state, set_incremental_state
+from vilt.modules.tat_utils import get_incremental_state, set_incremental_state
 
 from .base import ConvTBC
 
