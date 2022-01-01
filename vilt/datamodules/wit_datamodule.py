@@ -15,7 +15,7 @@ class WitDataModule(LightningDataModule):
         self.num_workers = _config["num_workers"]
         self.batch_size = _config["per_gpu_batchsize"]
         self.eval_batch_size = self.batch_size
-
+        self.max_text_len = _config['max_text_len']
         self.setup_flag = False
         self.train_transform_keys = (
             ["wit_default"]
