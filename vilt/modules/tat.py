@@ -22,7 +22,7 @@ class TransformAndTell(pl.LightningModule):
                                           config['relu_dropout'], config['input_dropout'], config['decoder_normalize_before'],
                                           config['attention_dropout'], config['decoder_ffn_embed_dim'], config['decoder_kernel_size_list'],
                                           config['decoder_layers'], config['final_norm'], config['vocab_size'], config['article_embed_size'])
-
+        self.padding_idx = config['padding_idx']
         self.decoder.apply(self.init_weights)
         self.pooler = tat_heads.WitPooler(config["hidden_size"])
         self.pooler.apply(self.init_weights)
@@ -203,7 +203,7 @@ class DynamicConvDecoder(nn.Module):
 
         self.dropout = dropout
 
-        decoder_input_embed_dim = self.embed_output_dim
+        decoder_input_embed_dim = embed_output_dim
         decoder_embed_dim = decoder_input_embed_dim
         decoder_output_embed_dim = decoder_input_embed_dim
 

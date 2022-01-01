@@ -45,6 +45,7 @@ def config():
     decoder_layers = 4
     final_norm = False
     vocab_size = 50265
+    article_embed_size = 1024
 
     # Optimizer Setting
     optim_type = "adamw"

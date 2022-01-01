@@ -17,11 +17,7 @@ class WitDataModule(LightningDataModule):
         self.eval_batch_size = self.batch_size
         self.max_text_len = _config['max_text_len']
         self.setup_flag = False
-        self.train_transform_keys = (
-            ["wit_default"]
-            if len(_config["train_transform_keys"]) == 0
-            else _config["train_transform_keys"]
-        )
+        self.train_transform_keys = ["wit_default"]
         self.train_dataset = None
         self.val_dataset = None
         self.test_dataset = None
