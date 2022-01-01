@@ -45,28 +45,28 @@ def epoch_wrapup(pl_module):
     phase = "train" if pl_module.training else "val"
     the_metric = 0
 
-    if pl_module.hparams.config["get_recall_metric"] and not pl_module.training:
-        (ir_r1, ir_r5, ir_r10, tr_r1, tr_r5, tr_r10) = compute_irtr_recall(pl_module)
-        print((ir_r1, ir_r5, ir_r10, tr_r1, tr_r5, tr_r10), pl_module.global_step)
-        pl_module.logger.experiment.add_scalar(
-            "recalls/ir_r1", ir_r1, pl_module.global_step
-        )
-        pl_module.logger.experiment.add_scalar(
-            "recalls/ir_r5", ir_r5, pl_module.global_step
-        )
-        pl_module.logger.experiment.add_scalar(
-            "recalls/ir_r10", ir_r10, pl_module.global_step
-        )
-        pl_module.logger.experiment.add_scalar(
-            "recalls/tr_r1", tr_r1, pl_module.global_step
-        )
-        pl_module.logger.experiment.add_scalar(
-            "recalls/tr_r5", tr_r5, pl_module.global_step
-        )
-        pl_module.logger.experiment.add_scalar(
-            "recalls/tr_r10", tr_r10, pl_module.global_step
-        )
-        the_metric += ir_r1.item() + tr_r1.item()
+    # if pl_module.hparams.config["get_recall_metric"] and not pl_module.training:
+    #     (ir_r1, ir_r5, ir_r10, tr_r1, tr_r5, tr_r10) = compute_irtr_recall(pl_module)
+    #     print((ir_r1, ir_r5, ir_r10, tr_r1, tr_r5, tr_r10), pl_module.global_step)
+    #     pl_module.logger.experiment.add_scalar(
+    #         "recalls/ir_r1", ir_r1, pl_module.global_step
+    #     )
+    #     pl_module.logger.experiment.add_scalar(
+    #         "recalls/ir_r5", ir_r5, pl_module.global_step
+    #     )
+    #     pl_module.logger.experiment.add_scalar(
+    #         "recalls/ir_r10", ir_r10, pl_module.global_step
+    #     )
+    #     pl_module.logger.experiment.add_scalar(
+    #         "recalls/tr_r1", tr_r1, pl_module.global_step
+    #     )
+    #     pl_module.logger.experiment.add_scalar(
+    #         "recalls/tr_r5", tr_r5, pl_module.global_step
+    #     )
+    #     pl_module.logger.experiment.add_scalar(
+    #         "recalls/tr_r10", tr_r10, pl_module.global_step
+    #     )
+    #     the_metric += ir_r1.item() + tr_r1.item()
 
     for loss_name, v in pl_module.hparams.config["loss_names"].items():
         if v < 1:
