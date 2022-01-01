@@ -19,6 +19,10 @@ class TransformAndTell(pl.LightningModule):
 
         self.resnet = resnet152()
         self.roberta = torch.hub.load('pytorch/fairseq:2f7e3f3323', 'roberta.large')
+        for param in self.resnet.parameters():
+            param.requires_grad = False
+        for param in self.roberta.parameters():
+            param.requires_grad = False
         self.decoder = DynamicConvDecoder(config['embed_size'], config['embed_output_dim'], config['padding_idx'], config['init_size'], config['left_pad'],
                                           config['dropout'], config['decoder_conv_dim'], config['decoder_glu'], config['decoder_conv_type'],
                                           config['weight_softmax'], config['decoder_attention_heads'], config['weight_dropout'],
