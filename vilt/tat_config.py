@@ -21,7 +21,7 @@ def config():
     exp_name = "transform_and_tell"
     seed = 0
     loss_names = _loss_names({"itm": 1, "mlm": 1})
-    batch_size = 4096  # this is a desired batch size; pl trainer will accumulate gradients when per step batch is smaller.
+    batch_size = 4  # this is a desired batch size; pl trainer will accumulate gradients when per step batch is smaller.
 
     # Decoder Setting
     embed_size = 1024
@@ -82,7 +82,7 @@ def config():
 def env_dandelin():
     data_root = "/data2fast/users/vkhanh/data/"
     log_dir = "/data2/vilt/result"
-    num_gpus = 8
+    num_gpus = 1
     num_nodes = 1
 
 
@@ -91,7 +91,7 @@ def env_dandelin():
 def task_mlm_itm():
     exp_name = "transform_and_tell_mlm_itm"
     loss_names = _loss_names({"itm": 1, "clm": 1})
-    batch_size = 4096
+    batch_size = 4
     max_epoch = 10
     max_image_len = 200
 
