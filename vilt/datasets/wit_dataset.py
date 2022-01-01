@@ -53,6 +53,8 @@ class WitDataset(Dataset):
         str_caption = self.str_captions[index]
         context = self.get_text(str_description)
         caption = self.get_text(str_caption)
+        import pdb
+        pdb.set_trace()
         ret = {
             "image": img,
             "image_id": img_id,
@@ -102,7 +104,12 @@ class WitDataset(Dataset):
     def collate(self, batch):
         keys = set([key for b in batch for key in b.keys()])
         dict_batch = {k: [dic[k] if k in dic else None for dic in batch] for k in keys}
-        txt_keys = [k for k in list(dict_batch.keys()) if k in ["context", "caption"]]
+
+        img_keys = [k for k in list(dict_batch.keys()) if "image" in k]
+        for img_key in img_keys:
+            dict_batch[img_key] = torch.stack(dict_batch[img_key])
+
+        txt_keys = ["context", "caption"]
         if len(txt_keys) != 0:
             for i, txt_key in enumerate(txt_keys):
                 texts, encodings = (
