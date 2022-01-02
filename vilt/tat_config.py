@@ -25,6 +25,7 @@ def config():
     max_text_len = 512
     draw_false_image = 1
     weigh_bert = True
+
     # Decoder Setting
     embed_size = 1024
     embed_output_dim = 1024
@@ -66,8 +67,8 @@ def config():
     # below params varies with the environment
     data_root = ""
     log_dir = "result"
-    per_gpu_batchsize = 4  # you should define this manually with per_gpu_batch_size=#
-    num_gpus = 4
+    per_gpu_batchsize = 0  # you should define this manually with per_gpu_batch_size=#
+    num_gpus = 1
     num_nodes = 1
     load_path = ""
     num_workers = 8
@@ -94,7 +95,7 @@ def env_dandelin():
 def task_mlm_itm():
     exp_name = "transform_and_tell_mlm_itm"
     loss_names = _loss_names({"itm": 1, "clm": 1})
-    batch_size = 4096
+    batch_size = 16
     max_epoch = 10
     max_text_len = 512
     draw_false_image = 1

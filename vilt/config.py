@@ -102,6 +102,16 @@ def task_mlm_itm():
 
 
 @ex.named_config
+def task_mlm_itm_test():
+    exp_name = "mlm_itm_test"
+    datasets = ["coco"]
+    loss_names = _loss_names({"itm": 1, "mlm": 1})
+    batch_size = 4096
+    max_epoch = 10
+    max_image_len = 200
+
+
+@ex.named_config
 def task_mlm_itm_randaug():
     exp_name = "mlm_itm_randaug"
     datasets = ["coco", "vg", "sbu", "gcc"]
