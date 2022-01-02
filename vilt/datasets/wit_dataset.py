@@ -28,7 +28,6 @@ class WitDataset(Dataset):
 
         # Open hdf5 file where images are stored
         self.h = h5py.File(os.path.join(self.data_dir, self.split + '_IMAGES_' + 'wit_100_min_word_freq' + '.hdf5'), 'r')
-        self.imgs = None
 
         with open(os.path.join(self.data_dir, split + '_IMAGEIDS_wit_100_min_word_freq.json'), 'r') as j:
             self.image_ids = json.load(j)
@@ -45,7 +44,6 @@ class WitDataset(Dataset):
 
     def open_hdf5(self):
         self.h = h5py.File('img.hdf5', 'r')
-        self.imgs = self.h['images']  # if you want dataset.
 
     def __getitem__(self, index):
         if not hasattr(self, 'h'):
@@ -78,7 +76,7 @@ class WitDataset(Dataset):
 
     def get_false_image(self, rep):
         random_index = random.randint(0, self.dataset_size - 1)
-        image = torch.FloatTensor(self.imgs[random_index] / 255.)
+        image = torch.FloatTensor(self.h['images'][random_index] / 255.)
         if self.transforms is not None:
             image = self.transforms[0](image)
         return {f"false_image_{rep}": image}
