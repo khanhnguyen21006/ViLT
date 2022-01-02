@@ -10,8 +10,7 @@ class WitPooler(nn.Module):
         self.dense = nn.Linear(hidden_size, hidden_size)
         self.activation = nn.Tanh()
 
-    def forward(self, hidden_states):
-        last_token_tensor = hidden_states[:, -1]
+    def forward(self, last_token_tensor):
         pooled_output = self.dense(last_token_tensor)
         pooled_output = self.activation(pooled_output)
         return pooled_output

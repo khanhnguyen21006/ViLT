@@ -124,7 +124,7 @@ def compute_clm(pl_module, batch):
     clm_loss = F.cross_entropy(
         clm_logits.view(-1, pl_module.hparams.config["vocab_size"]),
         clm_labels.view(-1),
-        ignore_index=-100,
+        ignore_index=pl_module.padding_idx,
     )
 
     ret = {

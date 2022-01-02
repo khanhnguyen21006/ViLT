@@ -141,16 +141,24 @@ class TransformAndTell(pl.LightningModule):
         # Create padding mask (1 corresponds to the padding index)
         image_padding_mask = X_image.new_zeros(B, P).bool()
 
+        X_image = X_image.transpose(0, 1)
+        X_article = X_article.transpose(0, 1)
+
         X = caption_ids
         X = self.decoder(X, X_image, image_padding_mask, X_article, article_padding_mask)
 
-        text_feats = X[:, caption_masks][:, :-1]
-        cls_feats = self.pooler(X[:, caption_masks])
+        X_feats, _ = X
+
+        batch_cls_out = []
+        for b in range(caption_masks.shape[0]):
+            batch_cls_out.append(X_feats[b][caption_masks[b], :][-1])
+        text_feats = X_feats[:, :-1, :]
+        cls_feats = self.pooler(torch.stack(batch_cls_out))
 
         ret = {
             "text_feats": text_feats,
             "cls_feats": cls_feats,
-            "raw_cls_feats": X[:, caption_masks][:, -1],
+            "raw_cls_feats": torch.stack(batch_cls_out),
             "text_labels": target_ids,
             "text_ids": caption_ids,
             "text_masks": caption_masks,
