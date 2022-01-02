@@ -23,6 +23,8 @@ def config():
     loss_names = _loss_names({"itm": 1, "mlm": 1})
     batch_size = 4  # this is a desired batch size; pl trainer will accumulate gradients when per step batch is smaller.
     max_text_len = 512
+    draw_false_image = 0
+
     # Decoder Setting
     embed_size = 1024
     embed_output_dim = 1024
@@ -95,6 +97,7 @@ def task_mlm_itm():
     batch_size = 4
     max_epoch = 10
     max_text_len = 512
+    draw_false_image = 0
 
 @ex.named_config
 def task_mlm_itm_randaug():

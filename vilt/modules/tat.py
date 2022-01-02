@@ -94,7 +94,7 @@ class TransformAndTell(pl.LightningModule):
         target_ids = target_ids[:, :-1]
 
         # Embed the image
-        image = batch["image"][0]
+        image = batch["image"]
         X_image = self.resnet(image)
         # X_image.shape == [batch_size, 2048, 7, 7]
 
