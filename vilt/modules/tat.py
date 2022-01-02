@@ -80,7 +80,7 @@ class TransformAndTell(pl.LightningModule):
 
         # Image Text Matching
         if "itm" in self.current_tasks:
-            ret.update(objectives.compute_itm_wpa(self, batch))
+            ret.update(objectives.compute_tat_itm_wpa(self, batch))
 
         return ret
 
