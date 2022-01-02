@@ -71,7 +71,7 @@ class WitDataset(Dataset):
         return self.dataset_size
 
     def get_false_image(self, rep):
-        random_index = random.randint(0, len(self.dataset_size) - 1)
+        random_index = random.randint(0, self.dataset_size - 1)
         image = torch.FloatTensor(self.imgs[random_index] / 255.)
         if self.transforms is not None:
             image = self.transforms[0](image)

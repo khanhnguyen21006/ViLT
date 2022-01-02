@@ -311,69 +311,61 @@ def compute_tat_itm_wpa(pl_module, batch):
     )
     itm_labels = itm_labels[torch.randperm(itm_labels.size(0))]
 
-    itm_images = [
-        torch.stack(
-            [
-                ti if itm_labels[i] == 1 else fi
-                for i, (ti, fi) in enumerate(zip(bti, bfi))
-            ]
-        )
-        for bti, bfi in zip(batch["image"], batch["false_image_0"])
-    ]
-
+    itm_images = []
+    for i, (ti, fi) in enumerate(zip(batch["image"], batch["false_image_0"])):
+        itm_images.append(ti if itm_labels[i] == 1 else fi)
+    itm_images = torch.stack(itm_images)
     batch = {k: v for k, v in batch.items()}
     batch["image"] = itm_images
 
-    infer = pl_module.infer(batch, mask_text=False, mask_image=False)
+    infer = pl_module.infer(batch)
 
-    with torch.cuda.amp.autocast(enabled=False):
-        txt_emb, img_emb = infer["text_feats"], infer["image_feats"]
-        txt_mask, img_mask = infer["text_masks"].bool(), infer["image_masks"].bool()
-        for i, _len in enumerate(txt_mask.sum(dim=1)):
-            txt_mask[i, _len - 1] = False
-        txt_mask[:, 0] = False
-        img_mask[:, 0] = False
-        if "deit" in pl_module.hparams.config["vit"]:
-            img_mask[:, 1] = False
-        txt_pad, img_pad = ~txt_mask, ~img_mask
-
-        cost = cost_matrix_cosine(txt_emb.float(), img_emb.float())
-        joint_pad = txt_pad.unsqueeze(-1) | img_pad.unsqueeze(-2)
-        cost.masked_fill_(joint_pad, 0)
-
-        txt_len = (txt_pad.size(1) - txt_pad.sum(dim=1, keepdim=False)).to(
-            dtype=cost.dtype
-        )
-        img_len = (img_pad.size(1) - img_pad.sum(dim=1, keepdim=False)).to(
-            dtype=cost.dtype
-        )
-        T = ipot(
-            cost.detach(), txt_len, txt_pad, img_len, img_pad, joint_pad, 0.5, 50, 1
-        )
-        distance = trace(cost.matmul(T.detach()))
-
-    dist_pos = distance.masked_select(itm_labels == 1)
-    dist_neg = distance.masked_select(itm_labels == 0)
-    ot_loss = (dist_pos.sum() - dist_neg.sum()) / (dist_pos.size(0) + dist_neg.size(0))
+    # with torch.cuda.amp.autocast(enabled=False):
+    #     txt_emb, img_emb = infer["text_feats"], infer["image_feats"]
+    #     txt_mask, img_mask = infer["text_masks"][:-1].bool(), torch.ones((img_emb.shape[0], img_emb.shape[1])).bool().to(pl_module.device)
+    #     for i, _len in enumerate(txt_mask.sum(dim=1)):
+    #         txt_mask[i, _len - 1] = False
+    #     txt_mask[:, 0] = False
+    #
+    #     txt_pad, img_pad = ~txt_mask, ~img_mask
+    #
+    #     cost = cost_matrix_cosine(txt_emb.float(), img_emb.float())
+    #     joint_pad = txt_pad.unsqueeze(-1) | img_pad.unsqueeze(-2)
+    #     cost.masked_fill_(joint_pad, 0)
+    #
+    #     txt_len = (txt_pad.size(1) - txt_pad.sum(dim=1, keepdim=False)).to(
+    #         dtype=cost.dtype
+    #     )
+    #     img_len = (img_pad.size(1) - img_pad.sum(dim=1, keepdim=False)).to(
+    #         dtype=cost.dtype
+    #     )
+    #     T = ipot(
+    #         cost.detach(), txt_len, txt_pad, img_len, img_pad, joint_pad, 0.5, 50, 1
+    #     )
+    #     distance = trace(cost.matmul(T.detach()))
+    #
+    # dist_pos = distance.masked_select(itm_labels == 1)
+    # dist_neg = distance.masked_select(itm_labels == 0)
+    # ot_loss = (dist_pos.sum() - dist_neg.sum()) / (dist_pos.size(0) + dist_neg.size(0))
 
     itm_logits = pl_module.itm_score(infer["cls_feats"])
     itm_loss = F.cross_entropy(itm_logits, itm_labels.long())
 
     ret = {
         "itm_loss": itm_loss,
-        "itm_wpa_loss": 0.1 * ot_loss,
+        # "itm_wpa_loss": 0.1 * ot_loss,
         "itm_logits": itm_logits,
         "itm_labels": itm_labels,
     }
 
     phase = "train" if pl_module.training else "val"
     loss = getattr(pl_module, f"{phase}_itm_loss")(ret["itm_loss"])
-    wpa_loss = getattr(pl_module, f"{phase}_itm_wpa_loss")(ret["itm_wpa_loss"])
+    # wpa_loss = getattr(pl_module, f"{phase}_itm_wpa_loss")(ret["itm_wpa_loss"])
     acc = getattr(pl_module, f"{phase}_itm_accuracy")(
         ret["itm_logits"], ret["itm_labels"]
     )
     pl_module.log(f"itm/{phase}/loss", loss)
-    pl_module.log(f"itm/{phase}/wpa_loss", wpa_loss)
+    # pl_module.log(f"itm/{phase}/wpa_loss", wpa_loss)
     pl_module.log(f"itm/{phase}/accuracy", acc)
 
     return ret

@@ -141,6 +141,7 @@ class TransformAndTell(pl.LightningModule):
         # Create padding mask (1 corresponds to the padding index)
         image_padding_mask = X_image.new_zeros(B, P).bool()
 
+        image_feats = X_image
         X_image = X_image.transpose(0, 1)
         X_article = X_article.transpose(0, 1)
 
@@ -162,6 +163,7 @@ class TransformAndTell(pl.LightningModule):
             "text_labels": target_ids,
             "text_ids": caption_ids,
             "text_masks": caption_masks,
+            "image_feats": image_feats,
         }
 
         return ret
@@ -238,7 +240,7 @@ class DynamicConvDecoder(nn.Module):
         ])
 
         self.embed_out = nn.Parameter(torch.Tensor(vocab_size, decoder_output_embed_dim))
-        nn.init.normal_(self.embed_out, mean=0, std=decoder_output_embed_dim ** -0.5)
+        # nn.init.normal_(self.embed_out, mean=0, std=decoder_output_embed_dim ** -0.5)
 
         self.register_buffer('version', torch.Tensor([2]))
 
