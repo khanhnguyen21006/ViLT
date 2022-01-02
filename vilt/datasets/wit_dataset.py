@@ -27,15 +27,14 @@ class WitDataset(Dataset):
         self.max_text_len = max_text_len
 
         # Open hdf5 file where images are stored
-        self.h = h5py.File(os.path.join(self.data_dir, self.split + '_IMAGES_' + 'wit_100_min_word_freq' + '.hdf5'), 'r')
 
-        with open(os.path.join(self.data_dir, split + '_IMAGEIDS_wit_100_min_word_freq.json'), 'r') as j:
+        with open(os.path.join(self.data_dir, self.split + '_IMAGEIDS_wit_100_min_word_freq.json'), 'r') as j:
             self.image_ids = json.load(j)
 
-        with open(os.path.join(self.data_dir, split + '_RAWSTRDESCS_wit_100_min_word_freq.json'), 'r') as j:
+        with open(os.path.join(self.data_dir, self.split + '_RAWSTRDESCS_wit_100_min_word_freq.json'), 'r') as j:
             self.str_descriptions = json.load(j)
 
-        with open(os.path.join(self.data_dir, split + '_RAWSTRCAPS_wit_100_min_word_freq.json'), 'r') as j:
+        with open(os.path.join(self.data_dir, self.split + '_RAWSTRCAPS_wit_100_min_word_freq.json'), 'r') as j:
             self.str_captions = json.load(j)
 
         self.dataset_size = len(self.str_captions)
@@ -43,12 +42,13 @@ class WitDataset(Dataset):
         self.draw_false_image = draw_false_image
 
     def open_hdf5(self):
-        self.h = h5py.File('img.hdf5', 'r')
+        self.h = h5py.File(os.path.join(self.data_dir, self.split + '_IMAGES_' + 'wit_100_min_word_freq' + '.hdf5'), 'r')
+        self.imgs = self.h['images']
 
     def __getitem__(self, index):
         if not hasattr(self, 'h'):
             self.open_hdf5()
-        img = torch.FloatTensor(self.h['images'][index] / 255.)
+        img = torch.FloatTensor(self.imgs[index] / 255.)
 
         if self.transforms is not None:
             img = self.transforms[0](img)
@@ -76,7 +76,7 @@ class WitDataset(Dataset):
 
     def get_false_image(self, rep):
         random_index = random.randint(0, self.dataset_size - 1)
-        image = torch.FloatTensor(self.h['images'][random_index] / 255.)
+        image = torch.FloatTensor(self.imgs[random_index] / 255.)
         if self.transforms is not None:
             image = self.transforms[0](image)
         return {f"false_image_{rep}": image}
