@@ -20,8 +20,8 @@ def _loss_names(d):
 def config():
     exp_name = "transform_and_tell"
     seed = 0
-    loss_names = _loss_names({"itm": 1, "mlm": 1})
-    batch_size = 4  # this is a desired batch size; pl trainer will accumulate gradients when per step batch is smaller.
+    loss_names = _loss_names({"itm": 1, "clm": 1})
+    batch_size = 4096  # this is a desired batch size; pl trainer will accumulate gradients when per step batch is smaller.
     max_text_len = 512
     draw_false_image = 1
     weigh_bert = True
@@ -66,11 +66,11 @@ def config():
     # below params varies with the environment
     data_root = ""
     log_dir = "result"
-    per_gpu_batchsize = 0  # you should define this manually with per_gpu_batch_size=#
-    num_gpus = 1
+    per_gpu_batchsize = 4  # you should define this manually with per_gpu_batch_size=#
+    num_gpus = 4
     num_nodes = 1
     load_path = ""
-    num_workers = 0
+    num_workers = 1
     precision = 16
 
     # PL Trainer Setting
