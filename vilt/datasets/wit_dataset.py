@@ -47,7 +47,7 @@ class WitDataset(Dataset):
         img = torch.FloatTensor(self.imgs[index] / 255.)
 
         if self.transforms is not None:
-            img = self.transforms(img)
+            img = self.transforms[0](img)
         img_id = torch.LongTensor([self.image_ids[index]])
         str_description = self.str_descriptions[index]
         str_caption = self.str_captions[index]
@@ -74,7 +74,7 @@ class WitDataset(Dataset):
         random_index = random.randint(0, len(self.dataset_size) - 1)
         image = torch.FloatTensor(self.imgs[random_index] / 255.)
         if self.transforms is not None:
-            image = [_trans(image) for _trans in self.transforms]
+            image = self.transforms[0](image)
         return {f"false_image_{rep}": image}
 
     def get_text(self, sentence):
