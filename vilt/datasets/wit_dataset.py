@@ -47,14 +47,13 @@ class WitDataset(Dataset):
         img = torch.FloatTensor(self.imgs[index] / 255.)
 
         if self.transforms is not None:
-            img = [_trans(img) for _trans in self.transforms]
+            img = self.transforms(img)
         img_id = torch.LongTensor([self.image_ids[index]])
         str_description = self.str_descriptions[index]
         str_caption = self.str_captions[index]
         context = self.get_text(str_description)
         caption = self.get_text(str_caption)
-        import pdb
-        pdb.set_trace()
+
         ret = {
             "image": img,
             "image_id": img_id,

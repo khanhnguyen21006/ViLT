@@ -68,7 +68,7 @@ def config():
     num_gpus = 1
     num_nodes = 1
     load_path = ""
-    num_workers = 8
+    num_workers = 0
     precision = 16
 
     # PL Trainer Setting
