@@ -23,6 +23,11 @@ class TransformAndTell(pl.LightningModule):
             param.requires_grad = False
         for param in self.roberta.parameters():
             param.requires_grad = False
+        self.weigh_bert = config['weigh_bert']
+        if self.weigh_bert:
+            self.bert_weight = nn.Parameter(torch.Tensor(25))
+            nn.init.uniform_(self.bert_weight)
+
         self.decoder = DynamicConvDecoder(config['embed_size'], config['embed_output_dim'], config['padding_idx'], config['init_size'], config['left_pad'],
                                           config['dropout'], config['decoder_conv_dim'], config['decoder_glu'], config['decoder_conv_type'],
                                           config['weight_softmax'], config['decoder_attention_heads'], config['weight_dropout'],
