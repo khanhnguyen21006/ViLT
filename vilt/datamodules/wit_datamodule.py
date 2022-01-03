@@ -100,7 +100,7 @@ class WitDataModule(LightningDataModule):
         loader = DataLoader(
             self.train_dataset,
             batch_size=self.batch_size,
-            shuffle=True,
+            sampler=self.train_sampler,
             num_workers=self.num_workers,
             pin_memory=True,
             collate_fn=self.train_dataset.collate,
@@ -111,7 +111,7 @@ class WitDataModule(LightningDataModule):
         loader = DataLoader(
             self.val_dataset,
             batch_size=self.eval_batch_size,
-            shuffle=False,
+            sampler=self.val_sampler,
             num_workers=self.num_workers,
             pin_memory=True,
             collate_fn=self.val_dataset.collate,
@@ -122,7 +122,7 @@ class WitDataModule(LightningDataModule):
         loader = DataLoader(
             self.test_dataset,
             batch_size=self.eval_batch_size,
-            shuffle=False,
+            sampler=self.test_sampler,
             num_workers=self.num_workers,
             pin_memory=True,
             collate_fn=self.test_dataset.collate,
