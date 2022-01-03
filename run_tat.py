@@ -5,7 +5,6 @@ import pytorch_lightning as pl
 from vilt.tat_config import ex
 from vilt.modules import TransformAndTell
 from vilt.datamodules.wit_datamodule import WitDataModule
-from vilt.modules.tat_utils import CheckpointEveryNSteps
 
 
 @ex.automain
@@ -32,8 +31,7 @@ def main(_config):
     )
 
     lr_callback = pl.callbacks.LearningRateMonitor(logging_interval="step")
-    step_checkpoint_callback = CheckpointEveryNSteps(15000)
-    callbacks = [checkpoint_callback, lr_callback, step_checkpoint_callback]
+    callbacks = [checkpoint_callback, lr_callback]
 
     num_gpus = (
         _config["num_gpus"]
