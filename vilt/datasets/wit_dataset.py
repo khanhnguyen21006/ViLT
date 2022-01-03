@@ -131,7 +131,7 @@ class WitDataset(Dataset):
         img = img.transpose(2, 0, 1)
         assert img.shape == (3, 256, 256)
         assert np.max(img) <= 255
-        image = torch.FloatTensor(self.imgs[random_index] / 255.)
+        image = torch.FloatTensor(img / 255.)
         if self.transforms is not None:
             image = self.transforms[0](image)
         return {f"false_image_{rep}": image}
