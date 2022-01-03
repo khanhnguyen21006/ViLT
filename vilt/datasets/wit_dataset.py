@@ -3,8 +3,13 @@ import os
 import re
 import json
 import pyarrow as pa
-import h5py
+# import h5py
 import random
+import io
+from PIL import Image
+import base64
+import numpy as np
+import cv2
 from torch.utils.data import Dataset
 from torch.nn.utils.rnn import pad_sequence
 from vilt.transforms import keys_to_wit_transforms
@@ -21,8 +26,8 @@ class WitDataset(Dataset):
             max_text_len: int,
             draw_false_image: int = 0,
     ):
-        assert split in ["TRAIN", "VAL", "TEST"]
-        self.split = split
+        assert split.lower() in ["train", "val", "test"]
+        self.split = split.lower()
         self.data_dir = data_dir
         self.transforms = keys_to_wit_transforms(transform_keys)
         self.max_text_len = max_text_len
@@ -40,7 +45,7 @@ class WitDataset(Dataset):
 
         self.draw_false_image = draw_false_image
 
-        self.table = pa.ipc.RecordBatchFileReader(pa.memory_map(f"{data_dir}/{self.split}.arrow", "r") ).read_all()
+        self.table = pa.ipc.RecordBatchFileReader(pa.memory_map(f"{data_dir}wit_{self.split}.arrow", "r")).read_all()
 
         self.imgs = self.table["image"].to_pandas().tolist()
         self.str_captions = self.table["caption"].to_pandas().tolist()
@@ -56,7 +61,28 @@ class WitDataset(Dataset):
     def __getitem__(self, index):
         # if not hasattr(self, 'h'):
         #     self.open_hdf5()
-        img = torch.FloatTensor(self.imgs[index] / 255.)
+        try:
+            base64_decoded = base64.b64decode(self.imgs[index])
+            img = Image.open(io.BytesIO(base64_decoded))
+            img = img.convert('RGB')
+            img = np.array(img)
+            if len(img.shape) == 2:
+                img = img[:, :, np.newaxis]
+                img = np.concatenate([img, img, img], axis=2)
+            img = np.array(Image.fromarray(img).resize((256, 256)))
+            if len(img.shape) > 2 and img.shape[2] == 4:
+                # convert the image from RGBA2RGB for .png image
+                img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
+        except TypeError as e:
+            print(f'{e} at image {index}')
+            img = np.array(Image.fromarray((img * 255).astype(np.uint8)).resize((256, 256)))
+        except Exception as e:
+            print(f"An exception occurred {e} at image {index}")
+
+        img = img.transpose(2, 0, 1)
+        assert img.shape == (3, 256, 256)
+        assert np.max(img) <= 255
+        img = torch.FloatTensor(img / 255.)
 
         if self.transforms is not None:
             img = self.transforms[0](img)
