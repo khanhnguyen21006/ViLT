@@ -2,6 +2,7 @@ import torch
 import os
 import re
 import json
+import pyarrow as pa
 import h5py
 import random
 from torch.utils.data import Dataset
@@ -28,26 +29,33 @@ class WitDataset(Dataset):
 
         # Open hdf5 file where images are stored
 
-        with open(os.path.join(self.data_dir, self.split + '_IMAGEIDS_wit_100_min_word_freq.json'), 'r') as j:
-            self.image_ids = json.load(j)
-
-        with open(os.path.join(self.data_dir, self.split + '_RAWSTRDESCS_wit_100_min_word_freq.json'), 'r') as j:
-            self.str_descriptions = json.load(j)
-
-        with open(os.path.join(self.data_dir, self.split + '_RAWSTRCAPS_wit_100_min_word_freq.json'), 'r') as j:
-            self.str_captions = json.load(j)
-
-        self.dataset_size = len(self.str_captions)
+        # with open(os.path.join(self.data_dir, self.split + '_IMAGEIDS_wit_100_min_word_freq.json'), 'r') as j:
+        #     self.image_ids = json.load(j)
+        #
+        # with open(os.path.join(self.data_dir, self.split + '_RAWSTRDESCS_wit_100_min_word_freq.json'), 'r') as j:
+        #     self.str_descriptions = json.load(j)
+        #
+        # with open(os.path.join(self.data_dir, self.split + '_RAWSTRCAPS_wit_100_min_word_freq.json'), 'r') as j:
+        #     self.str_captions = json.load(j)
 
         self.draw_false_image = draw_false_image
 
-    def open_hdf5(self):
-        self.h = h5py.File(os.path.join(self.data_dir, self.split + '_IMAGES_' + 'wit_100_min_word_freq' + '.hdf5'), 'r')
-        self.imgs = self.h['images']
+        self.table = pa.ipc.RecordBatchFileReader(pa.memory_map(f"{data_dir}/{self.split}.arrow", "r") ).read_all()
+
+        self.imgs = self.table["image"].to_pandas().tolist()
+        self.str_captions = self.table["caption"].to_pandas().tolist()
+        self.str_descriptions = self.table["context"].to_pandas().tolist()
+        self.image_ids = self.table["image_id"].to_pandas().tolist()
+
+        self.dataset_size = len(self.str_captions)
+
+    # def open_hdf5(self):
+    #     self.h = h5py.File(os.path.join(self.data_dir, self.split + '_IMAGES_' + 'wit_100_min_word_freq' + '.hdf5'), 'r')
+    #     self.imgs = self.h['images']
 
     def __getitem__(self, index):
-        if not hasattr(self, 'h'):
-            self.open_hdf5()
+        # if not hasattr(self, 'h'):
+        #     self.open_hdf5()
         img = torch.FloatTensor(self.imgs[index] / 255.)
 
         if self.transforms is not None:
