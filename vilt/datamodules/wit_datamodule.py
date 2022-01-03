@@ -22,10 +22,8 @@ class WitDataModule(LightningDataModule):
         self.train_dataset = None
         self.val_dataset = None
         self.test_dataset = None
-
+        self.roberta = None
         self.dist = dist
-
-        self.roberta = torch.hub.load('pytorch/fairseq:2f7e3f3323', 'roberta.base')
 
     @property
     def dataset_cls(self):
@@ -38,6 +36,9 @@ class WitDataModule(LightningDataModule):
     @property
     def dataset_name(self):
         return "wit"
+
+    def prepare_data(self):
+        self.roberta = torch.hub.load('pytorch/fairseq:2f7e3f3323', 'roberta.base')
 
     def setup(self, stage):
         if not self.setup_flag:

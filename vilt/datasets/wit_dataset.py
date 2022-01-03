@@ -87,8 +87,8 @@ class WitDataset(Dataset):
         if self.transforms is not None:
             img = self.transforms[0](img)
         img_id = torch.LongTensor([self.image_ids[index]])
-        str_description = self.str_descriptions[index]
-        str_caption = self.str_captions[index]
+        str_description = self.str_descriptions[index][0]
+        str_caption = self.str_captions[index][0]
         context = self.get_text(str_description)
         caption = self.get_text(str_caption)
 
