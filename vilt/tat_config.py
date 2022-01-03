@@ -71,7 +71,7 @@ def config():
     num_gpus = 1
     num_nodes = 1
     load_path = ""
-    num_workers = 0
+    num_workers = 8
     precision = 16
 
     # PL Trainer Setting
@@ -95,7 +95,7 @@ def env_dandelin():
 def task_mlm_itm():
     exp_name = "transform_and_tell_mlm_itm"
     loss_names = _loss_names({"itm": 1, "clm": 1})
-    batch_size = 16
+    batch_size = 4096
     max_epoch = 10
     max_text_len = 512
     draw_false_image = 1
