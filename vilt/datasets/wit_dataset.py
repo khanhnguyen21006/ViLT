@@ -110,6 +110,27 @@ class WitDataset(Dataset):
 
     def get_false_image(self, rep):
         random_index = random.randint(0, self.dataset_size - 1)
+        try:
+            base64_decoded = base64.b64decode(self.imgs[random_index])
+            img = Image.open(io.BytesIO(base64_decoded))
+            img = img.convert('RGB')
+            img = np.array(img)
+            if len(img.shape) == 2:
+                img = img[:, :, np.newaxis]
+                img = np.concatenate([img, img, img], axis=2)
+            img = np.array(Image.fromarray(img).resize((256, 256)))
+            if len(img.shape) > 2 and img.shape[2] == 4:
+                # convert the image from RGBA2RGB for .png image
+                img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
+        except TypeError as e:
+            print(f'{e} at image {random_index}')
+            img = np.array(Image.fromarray((img * 255).astype(np.uint8)).resize((256, 256)))
+        except Exception as e:
+            print(f"An exception occurred {e} at image {random_index}")
+
+        img = img.transpose(2, 0, 1)
+        assert img.shape == (3, 256, 256)
+        assert np.max(img) <= 255
         image = torch.FloatTensor(self.imgs[random_index] / 255.)
         if self.transforms is not None:
             image = self.transforms[0](image)
