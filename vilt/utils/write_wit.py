@@ -2,7 +2,6 @@ import json
 import os
 import pandas as pd
 import pyarrow as pa
-import random
 import numpy as np
 from PIL import Image
 import base64
@@ -10,7 +9,6 @@ from tqdm import tqdm
 import io
 import cv2
 
-dataset = 'wit'
 field_as_context = 'tokenized_cad'
 field_as_context_length = 'cad_length'
 string_field_as_context = 'caption_attribution_description'
@@ -118,23 +116,23 @@ def make_arrow(root, dataset_root):
     val = [img['imgid'] for img in val_test['images'] if img['split'] == 'val']
     test = [img['imgid'] for img in val_test['images'] if img['split'] == 'test']
 
-    val_df = merged_df.loc[val]
-    test_df = merged_df.loc[test]
-    train_df = merged_df.drop(test + val)
+    # val_df = merged_df.loc[val]
+    # test_df = merged_df.loc[test]
+    # train_df = merged_df.drop(test + val)
 
     print('Total training data: ', len(merged_df))
     print('-------------------------------------------------')
     print('|    Train    |    Validation     |    Test     |')
     print('-------------------------------------------------')
-    print(f'|   {len(train_df)}    |        {len(val)}       |     {len(test)}    |')
+    print(f'|   {len(merged_df.drop(test + val))}    |        {len(merged_df.loc[val])}       |     {len(merged_df.loc[test])}    |')
     print('-------------------------------------------------')
 
     print('======================================')
     print('Creating data input files...')
 
-    val_batches = create_wit_input_files(val_df, 'VAL')
-    test_batches = create_wit_input_files(test_df, 'TEST')
-    train_batches = create_wit_input_files(train_df.head(15000), 'TRAIN')
+    val_batches = create_wit_input_files(merged_df.loc[val], 'VAL')
+    test_batches = create_wit_input_files(merged_df.loc[test], 'TEST')
+    train_batches = create_wit_input_files(merged_df.drop(test + val).head(15000), 'TRAIN')
 
     val_dataframe = pd.DataFrame(
         val_batches, columns=["image", "image_id", "context", "caption"],
