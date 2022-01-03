@@ -24,6 +24,8 @@ def main(_config):
         monitor="val/the_metric",
         mode="max",
         save_last=True,
+        every_n_train_steps=15000,
+        save_on_train_epoch_end=True
     )
     logger = pl.loggers.TensorBoardLogger(
         _config["log_dir"],

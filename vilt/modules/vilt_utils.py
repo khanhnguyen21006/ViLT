@@ -35,7 +35,7 @@ def set_metrics(pl_module):
             elif k == "itm":
                 setattr(pl_module, f"{split}_{k}_accuracy", Accuracy())
                 setattr(pl_module, f"{split}_{k}_loss", Scalar())
-                setattr(pl_module, f"{split}_{k}_wpa_loss", Scalar())
+                # setattr(pl_module, f"{split}_{k}_wpa_loss", Scalar())
             else:
                 setattr(pl_module, f"{split}_{k}_accuracy", Accuracy())
                 setattr(pl_module, f"{split}_{k}_loss", Scalar())
@@ -132,11 +132,11 @@ def epoch_wrapup(pl_module):
                 getattr(pl_module, f"{phase}_{loss_name}_loss").compute(),
             )
             getattr(pl_module, f"{phase}_{loss_name}_loss").reset()
-            pl_module.log(
-                f"{loss_name}/{phase}/wpa_loss_epoch",
-                getattr(pl_module, f"{phase}_{loss_name}_wpa_loss").compute(),
-            )
-            getattr(pl_module, f"{phase}_{loss_name}_wpa_loss").reset()
+            # pl_module.log(
+            #     f"{loss_name}/{phase}/wpa_loss_epoch",
+            #     getattr(pl_module, f"{phase}_{loss_name}_wpa_loss").compute(),
+            # )
+            # getattr(pl_module, f"{phase}_{loss_name}_wpa_loss").reset()
         else:
             value = getattr(pl_module, f"{phase}_{loss_name}_accuracy").compute()
             pl_module.log(f"{loss_name}/{phase}/accuracy_epoch", value)
