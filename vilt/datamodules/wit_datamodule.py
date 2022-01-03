@@ -6,6 +6,14 @@ from vilt.datasets import WitDataset
 from torch.utils.data.distributed import DistributedSampler
 
 
+def get_pretrained_roberta():
+    if torch.distributed.is_initialized():
+        if torch.distributed.get_rank() == 0:
+            torch.hub.load('pytorch/fairseq:2f7e3f3323', 'roberta.base')
+        torch.distributed.barrier()
+    return torch.hub.load('pytorch/fairseq:2f7e3f3323', 'roberta.base')
+
+
 class WitDataModule(LightningDataModule):
     def __init__(self, _config, dist=False):
         super().__init__()
@@ -22,7 +30,7 @@ class WitDataModule(LightningDataModule):
         self.train_dataset = None
         self.val_dataset = None
         self.test_dataset = None
-        self.roberta = None
+        self.roberta = get_pretrained_roberta()
         self.dist = dist
 
     @property
@@ -38,7 +46,7 @@ class WitDataModule(LightningDataModule):
         return "wit"
 
     def prepare_data(self):
-        self.roberta = torch.hub.load('pytorch/fairseq:2f7e3f3323', 'roberta.base')
+        print("PREPARING DATA WHEN??????")
 
     def setup(self, stage):
         if not self.setup_flag:
