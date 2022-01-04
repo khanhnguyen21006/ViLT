@@ -155,7 +155,7 @@ class WitDataset(Dataset):
             token = ''.join(self.tokenizer.bpe.bpe.byte_encoder[b] for b in raw_token.encode('utf-8'))
             # e.g. token == "ĠTomas"
 
-            token_ids = [self.tokenizer.bpe.bpe.encoder[bpe_token] for bpe_token in self.tokenizer.bpe.bpe(token).split(' ')]
+            token_ids = [self.tokenizer.bpe.bpe.encoder[bpe_token] for bpe_token in self.tokenizer.bpe.bpe.bpe(token).split(' ')]
             # e.g. token_ids == [6669, 959]
 
             # bpe_raw_tokens.extend(self.tokenizer.bpe.bpe(token).split(' '))
@@ -163,9 +163,9 @@ class WitDataset(Dataset):
 
             bpe_ner_masks.extend([1] * len(token_ids) if ner_mask else [0] * len(token_ids))
 
-        bpe_tokens = SPACE_NORMALIZER.sub(" ", ' '.join(map(str, bpe_tokens)))
         assert bpe_tokens == self.tokenizer.bpe.bpe.encode(sentence)
 
+        bpe_tokens = SPACE_NORMALIZER.sub(" ", ' '.join(map(str, bpe_tokens)))
         words = bpe_tokens.strip().split()
         assert len(words) == len(bpe_ner_masks)
 
@@ -173,14 +173,13 @@ class WitDataset(Dataset):
         words = ['<s>'] + words + ['</s>']
         ner_mask = [0] + bpe_ner_masks + [0]
 
-        # token_ids = []
+        token_ids = []
         masked_ner_token_ids = []
-
         for i, word in enumerate(words):
-            # token_ids.append(self.tokenizer.task.source_dictionary.indices[word])
+            token_ids.append(self.tokenizer.task.source_dictionary.indices[word])
             masked_ner_token_ids.append(self.tokenizer.task.source_dictionary.indices[word] if ner_mask[i] == 0 else 50264)
 
-        return torch.LongTensor(masked_ner_token_ids)
+        return torch.LongTensor(token_ids), torch.LongTensor(masked_ner_token_ids)
 
     def get_entity_mask(self, tokens, doc):
         # We first compute the start and end points for each token.

@@ -39,13 +39,21 @@ class TransformAndTell(pl.LightningModule):
         self.pooler = tat_heads.WitPooler(config["embed_output_dim"])
         self.pooler.apply(self.init_weights)
 
-        if config["loss_names"]["clm"] > 0 or config["loss_names"]["nmlm"] > 0:
+        if config["loss_names"]["clm"] > 0:
             bert_config = BertConfig(
                 vocab_size=config["vocab_size"],
                 hidden_size=config["embed_output_dim"],
             )
             self.clm_score = tat_heads.CLMHead(bert_config)
             self.clm_score.apply(self.init_weights)
+
+        if config["loss_names"]["nmlm"] > 0:
+            bert_config = BertConfig(
+                vocab_size=config["vocab_size"],
+                hidden_size=config["embed_output_dim"],
+            )
+            self.nmlm_score = tat_heads.CLMHead(bert_config)
+            self.nmlm_score.apply(self.init_weights)
 
         if config["loss_names"]["itm"] > 0:
             self.itm_score = tat_heads.ITMHead(config["embed_output_dim"])
@@ -85,7 +93,7 @@ class TransformAndTell(pl.LightningModule):
             ret.update(objectives.compute_clm(self, batch))
 
         if "nmlm" in self.current_tasks:
-            ret.update(objectives.compute_clm(self, batch))
+            ret.update(objectives.compute_nmlm(self, batch))
 
         # Image Text Matching
         if "itm" in self.current_tasks:

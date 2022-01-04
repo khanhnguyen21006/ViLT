@@ -145,6 +145,35 @@ def compute_clm(pl_module, batch):
     return ret
 
 
+def compute_nmlm(pl_module, batch):
+    infer = pl_module.infer(batch)
+    nmlm_logits = pl_module.nmlm_score(infer["text_feats"])
+    nmlm_labels = infer["text_labels"]
+
+    nmlm_loss = F.cross_entropy(
+        nmlm_logits.view(-1, pl_module.hparams.config["vocab_size"]),
+        nmlm_labels.contiguous().view(-1),
+        ignore_index=pl_module.padding_idx,
+    )
+
+    ret = {
+        "nmlm_loss": nmlm_loss,
+        "nmlm_logits": nmlm_logits,
+        "nmlm_labels": nmlm_labels,
+        "nmlm_ids": infer["text_ids"],
+    }
+
+    phase = "train" if pl_module.training else "val"
+    loss = getattr(pl_module, f"{phase}_nmlm_loss")(ret["nmlm_loss"])
+    acc = getattr(pl_module, f"{phase}_nmlm_accuracy")(
+        ret["nmlm_logits"], ret["nmlm_labels"]
+    )
+    pl_module.log(f"nmlm/{phase}/loss", loss)
+    pl_module.log(f"nmlm/{phase}/accuracy", acc)
+
+    return ret
+
+
 def compute_mpp(pl_module, batch):
     infer = pl_module.infer(batch, mask_text=False, mask_image=True)
     mpp_logits = pl_module.mpp_score(infer["image_feats"])
