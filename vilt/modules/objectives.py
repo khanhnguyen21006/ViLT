@@ -389,7 +389,7 @@ def compute_tat_itm_wpa(pl_module, batch):
     img_feats = pl_module.wpa_embed(infer["image_feats"])
     with torch.cuda.amp.autocast(enabled=False):
         txt_emb, img_emb = infer["text_feats"], img_feats
-        txt_mask, img_mask = infer["text_masks"][:, :-1].bool(), torch.ones((img_emb.shape[0], img_emb.shape[1])).bool().to(pl_module.device)
+        txt_mask, img_mask = infer["text_masks"].detach().clone()[:, :-1].bool(), torch.ones((img_emb.shape[0], img_emb.shape[1])).bool().to(pl_module.device)
         for i, _len in enumerate(txt_mask.sum(dim=1)):
             txt_mask[i, _len - 1] = False
         txt_mask[:, 0] = False
