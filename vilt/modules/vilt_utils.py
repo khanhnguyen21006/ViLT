@@ -141,6 +141,20 @@ def epoch_wrapup(pl_module):
             #     getattr(pl_module, f"{phase}_{loss_name}_wpa_loss").compute(),
             # )
             # getattr(pl_module, f"{phase}_{loss_name}_wpa_loss").reset()
+        elif loss_name == "itm_wpa":
+            value = getattr(pl_module, f"{phase}_itm_accuracy").compute()
+            pl_module.log(f"{loss_name}/{phase}/accuracy_epoch", value)
+            getattr(pl_module, f"{phase}_itm_accuracy").reset()
+            pl_module.log(
+                f"{loss_name}/{phase}/loss_epoch",
+                getattr(pl_module, f"{phase}_itm_loss").compute(),
+            )
+            getattr(pl_module, f"{phase}_itm_loss").reset()
+            pl_module.log(
+                f"{loss_name}/{phase}/wpa_loss_epoch",
+                getattr(pl_module, f"{phase}_{loss_name}_loss").compute(),
+            )
+            getattr(pl_module, f"{phase}_{loss_name}_loss").reset()
         else:
             value = getattr(pl_module, f"{phase}_{loss_name}_accuracy").compute()
             pl_module.log(f"{loss_name}/{phase}/accuracy_epoch", value)
