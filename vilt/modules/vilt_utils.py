@@ -37,9 +37,9 @@ def set_metrics(pl_module):
                 setattr(pl_module, f"{split}_{k}_loss", Scalar())
                 # setattr(pl_module, f"{split}_{k}_wpa_loss", Scalar())
             elif k == "itm_wpa":
-                setattr(pl_module, f"{split}_{k}_accuracy", Accuracy())
+                setattr(pl_module, f"{split}_itm_accuracy", Accuracy())
+                setattr(pl_module, f"{split}_itm_loss", Scalar())
                 setattr(pl_module, f"{split}_{k}_loss", Scalar())
-                setattr(pl_module, f"{split}_{k}_wpa_loss", Scalar())
             else:
                 setattr(pl_module, f"{split}_{k}_accuracy", Accuracy())
                 setattr(pl_module, f"{split}_{k}_loss", Scalar())
