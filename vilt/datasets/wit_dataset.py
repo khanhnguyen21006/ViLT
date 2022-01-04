@@ -7,8 +7,10 @@ import random
 from torch.utils.data import Dataset
 from torch.nn.utils.rnn import pad_sequence
 from vilt.transforms import keys_to_wit_transforms
+import spacy
 
 SPACE_NORMALIZER = re.compile(r"\s+")
+nlp = spacy.load("en_core_web_lg")
 
 
 class WitDataset(Dataset):
@@ -18,6 +20,7 @@ class WitDataset(Dataset):
             data_dir: str,
             transform_keys: list,
             max_text_len: int,
+            nmlm: int = 0,
             draw_false_image: int = 0,
     ):
         assert split in ["TRAIN", "VAL", "TEST"]
@@ -37,6 +40,7 @@ class WitDataset(Dataset):
 
         self.dataset_size = len(self.str_captions)
 
+        self.nmlm = nmlm
         self.draw_false_image = draw_false_image
 
     def open_hdf5(self):
@@ -55,7 +59,7 @@ class WitDataset(Dataset):
         str_description = self.str_descriptions[index]
         str_caption = self.str_captions[index]
         context = self.get_text(str_description)
-        caption = self.get_text(str_caption)
+        caption = self.get_text(str_caption, self.nmlm)
 
         ret = {
             "image": img,
@@ -80,8 +84,8 @@ class WitDataset(Dataset):
             image = self.transforms[0](image)
         return {f"false_image_{rep}": image}
 
-    def get_text(self, sentence):
-        encoding = self.to_token_ids(sentence)
+    def get_text(self, sentence, nmlm=0):
+        encoding = self.to_masked_ner_token_ids(sentence) if nmlm else self.to_token_ids(sentence)
         return {
             "text": (sentence, encoding),  # (str, dict)
         }
@@ -124,3 +128,74 @@ class WitDataset(Dataset):
                 if txt_key == "caption":
                     dict_batch[f"{txt_key}_masks"] = padded_encodings != 1
         return dict_batch
+
+    def to_masked_ner_token_ids(self, sentence):
+        bpe_tokens = []
+        bpe_ner_masks = []
+
+        raw_tokens = self.tokenizer.bpe.re.findall(self.tokenizer.bpe.pat, sentence)
+        text_doc = nlp(sentence)
+        ner_masks = self.get_entity_mask(raw_tokens, text_doc)
+        assert len(ner_masks) == len(raw_tokens)
+
+        for raw_token, ner_mask in zip(raw_tokens, ner_masks):
+            token = ''.join(self.tokenizer.bpe.byte_encoder[b] for b in raw_token.encode('utf-8'))
+            # e.g. token == "ĠTomas"
+
+            token_ids = [self.tokenizer.bpe.encoder[bpe_token] for bpe_token in self.self.tokenizer.bpe(token).split(' ')]
+            # e.g. token_ids == [6669, 959]
+
+            # bpe_raw_tokens.extend(self.tokenizer.bpe.bpe(token).split(' '))
+            bpe_tokens.extend(token_ids)
+
+            bpe_ner_masks.extend([1] * len(token_ids) if ner_mask else [0] * len(token_ids))
+
+        bpe_tokens = SPACE_NORMALIZER.sub(" ", ' '.join(map(str, bpe_tokens)))
+        assert bpe_tokens == self.tokenizer.bpe.encode(sentence)
+
+        words = bpe_tokens.strip().split()
+        assert len(words) == len(bpe_ner_masks)
+
+        words = words[:self.max_text_len - 2]
+        words = ['<s>'] + words + ['</s>']
+        ner_mask = [0] + bpe_ner_masks + [0]
+
+        token_ids = []
+        masked_ner_token_ids = []
+
+        for i, word in enumerate(words):
+            token_ids.append(self.tokenizer.task.source_dictionary.indices[word])
+            masked_ner_token_ids.append(self.tokenizer.task.source_dictionary.indices[word] if ner_mask[i] == 0 else 50264)
+
+        return torch.LongTensor(token_ids), torch.LongTensor(masked_ner_token_ids)
+
+    def get_entity_mask(self, tokens, doc):
+        # We first compute the start and end points for each token.
+        # End points are exclusive.
+        # e.g. tokens = [' Tomas', ' Maier', ',', ' autumn', '/', 'winter', ' 2014', ',', '\n', ' in', 'Milan', '.']
+        starts = []
+        ends = []
+        current = 0
+        for token in tokens:
+            starts.append(current)
+            current += len(token)
+            ends.append(current)
+
+        copy_masks = [0] * len(tokens)
+
+        if doc is None:
+            return copy_masks
+
+        # Next we get the character positions of named entities
+        for ent in doc.ents:
+            if random.random() < 0.8:
+                # A token is part of an entity if it lies strictly inside it
+                for i, (start, end, token) in enumerate(zip(starts, ends, tokens)):
+                    entity_start = ent.start_char
+                    if token[0] == ' ':
+                        entity_start -= 1
+                    entity_end = ent.end_char
+
+                    if start >= entity_start and end <= entity_end and ent.label_ in ['PERSON', 'ORG', 'GPE']:
+                        copy_masks[i] = 1
+        return copy_masks

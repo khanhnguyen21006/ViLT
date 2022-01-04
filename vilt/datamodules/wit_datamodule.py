@@ -32,6 +32,7 @@ class WitDataModule(LightningDataModule):
         self.test_dataset = None
         self.roberta = get_pretrained_roberta()
         self.dist = dist
+        self.nmlm = _config["loss_names"]["nmlm"]
 
     @property
     def dataset_cls(self):
@@ -75,6 +76,7 @@ class WitDataModule(LightningDataModule):
             transform_keys=self.train_transform_keys,
             split="TRAIN",
             max_text_len=self.max_text_len,
+            nmlm=self.nmlm,
             draw_false_image=self.draw_false_image
         )
 
@@ -84,6 +86,7 @@ class WitDataModule(LightningDataModule):
             transform_keys=self.train_transform_keys,
             split="VAL",
             max_text_len=self.max_text_len,
+            nmlm=self.nmlm,
             draw_false_image=self.draw_false_image
         )
 
@@ -93,6 +96,7 @@ class WitDataModule(LightningDataModule):
             transform_keys=self.train_transform_keys,
             split="TEST",
             max_text_len=self.max_text_len,
+            nmlm=self.nmlm,
             draw_false_image=self.draw_false_image
         )
 

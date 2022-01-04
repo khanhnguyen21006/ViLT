@@ -7,6 +7,8 @@ def _loss_names(d):
     ret = {
         "itm": 0,
         "clm": 0,
+        "nmlm": 0,
+        "itm_wpa": 0,
         # "mpp": 0,
         # "vqa": 0,
         # "nlvr2": 0,
@@ -92,13 +94,34 @@ def env_dandelin():
 
 # Named configs for "task" which define datasets, loss_names and desired batch_size, warmup_steps, epochs, and exp_name
 @ex.named_config
-def task_mlm_itm():
-    exp_name = "transform_and_tell_mlm_itm"
+def task_clm_itm():
+    exp_name = "transform_and_tell_clm_itm"
     loss_names = _loss_names({"itm": 1, "clm": 1})
     batch_size = 4096
     max_epoch = 10
     max_text_len = 512
     draw_false_image = 1
+
+
+@ex.named_config
+def task_nmlm_itm():
+    exp_name = "transform_and_tell_nmlm_itm"
+    loss_names = _loss_names({"itm": 1, "nmlm": 1})
+    batch_size = 4096
+    max_epoch = 10
+    max_text_len = 512
+    draw_false_image = 1
+
+
+@ex.named_config
+def task_nmlm_itm_wpa():
+    exp_name = "transform_and_tell_nmlm_itm_wpa"
+    loss_names = _loss_names({"itm_wpa": 1, "nmlm": 1})
+    batch_size = 4096
+    max_epoch = 10
+    max_text_len = 512
+    draw_false_image = 1
+
 
 @ex.named_config
 def task_mlm_itm_randaug():

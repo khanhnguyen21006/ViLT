@@ -39,3 +39,15 @@ class CLMHead(nn.Module):
         x = self.transform(x)
         x = self.decoder(x) + self.bias
         return x
+
+
+class ITMWPAHead(nn.Module):
+    def __init__(self, hidden_size):
+        super().__init__()
+        self.fc = nn.Linear(2048, hidden_size)
+        self.layerNorm = nn.LayerNorm(hidden_size)
+
+    def forward(self, x):
+        x = self.fc(x)
+        x = self.layerNorm(x)
+        return x
