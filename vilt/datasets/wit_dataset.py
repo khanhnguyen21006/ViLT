@@ -67,6 +67,10 @@ class WitDataset(Dataset):
             "context": context["text"],
             "caption": caption["text"],
         }
+        if self.nmlm:
+            ret.update({
+                "caption_nmlm": caption["masked_text"],
+            })
 
         for fi in range(self.draw_false_image):
             false_img = self.get_false_image(fi)
@@ -85,10 +89,19 @@ class WitDataset(Dataset):
         return {f"false_image_{rep}": image}
 
     def get_text(self, sentence, nmlm=0):
-        encoding = self.to_masked_ner_token_ids(sentence) if nmlm else self.to_token_ids(sentence)
-        return {
-            "text": (sentence, encoding),  # (str, dict)
-        }
+        ret = {}
+        if nmlm:
+            encoding, masked_encoding = self.to_masked_ner_token_ids(sentence)
+            ret.update({
+                "text": (sentence, encoding),
+                "masked_text": (sentence, masked_encoding),
+            })
+        else:
+            encoding = self.to_token_ids(sentence)
+            ret.update({
+                "text": (sentence, encoding),
+            })
+        return ret
 
     def to_token_ids(self, sentence):
         bpe_tokens = self.tokenizer.bpe.encode(sentence)
@@ -115,7 +128,7 @@ class WitDataset(Dataset):
         for img_key in img_keys:
             dict_batch[img_key] = torch.stack(dict_batch[img_key])
 
-        txt_keys = ["context", "caption"]
+        txt_keys = [k for k in list(dict_batch.keys()) if "context" in k or "caption" in k]
         if len(txt_keys) != 0:
             for i, txt_key in enumerate(txt_keys):
                 texts, encodings = (
@@ -133,16 +146,16 @@ class WitDataset(Dataset):
         bpe_tokens = []
         bpe_ner_masks = []
 
-        raw_tokens = self.tokenizer.bpe.re.findall(self.tokenizer.bpe.pat, sentence)
+        raw_tokens = self.tokenizer.bpe.bpe.re.findall(self.tokenizer.bpe.bpe.pat, sentence)
         text_doc = nlp(sentence)
         ner_masks = self.get_entity_mask(raw_tokens, text_doc)
         assert len(ner_masks) == len(raw_tokens)
 
         for raw_token, ner_mask in zip(raw_tokens, ner_masks):
-            token = ''.join(self.tokenizer.bpe.byte_encoder[b] for b in raw_token.encode('utf-8'))
+            token = ''.join(self.tokenizer.bpe.bpe.byte_encoder[b] for b in raw_token.encode('utf-8'))
             # e.g. token == "ĠTomas"
 
-            token_ids = [self.tokenizer.bpe.encoder[bpe_token] for bpe_token in self.self.tokenizer.bpe(token).split(' ')]
+            token_ids = [self.tokenizer.bpe.bpe.encoder[bpe_token] for bpe_token in self.tokenizer.bpe.bpe(token).split(' ')]
             # e.g. token_ids == [6669, 959]
 
             # bpe_raw_tokens.extend(self.tokenizer.bpe.bpe(token).split(' '))
@@ -151,7 +164,7 @@ class WitDataset(Dataset):
             bpe_ner_masks.extend([1] * len(token_ids) if ner_mask else [0] * len(token_ids))
 
         bpe_tokens = SPACE_NORMALIZER.sub(" ", ' '.join(map(str, bpe_tokens)))
-        assert bpe_tokens == self.tokenizer.bpe.encode(sentence)
+        assert bpe_tokens == self.tokenizer.bpe.bpe.encode(sentence)
 
         words = bpe_tokens.strip().split()
         assert len(words) == len(bpe_ner_masks)
@@ -160,14 +173,14 @@ class WitDataset(Dataset):
         words = ['<s>'] + words + ['</s>']
         ner_mask = [0] + bpe_ner_masks + [0]
 
-        token_ids = []
+        # token_ids = []
         masked_ner_token_ids = []
 
         for i, word in enumerate(words):
-            token_ids.append(self.tokenizer.task.source_dictionary.indices[word])
+            # token_ids.append(self.tokenizer.task.source_dictionary.indices[word])
             masked_ner_token_ids.append(self.tokenizer.task.source_dictionary.indices[word] if ner_mask[i] == 0 else 50264)
 
-        return torch.LongTensor(token_ids), torch.LongTensor(masked_ner_token_ids)
+        return torch.LongTensor(masked_ner_token_ids)
 
     def get_entity_mask(self, tokens, doc):
         # We first compute the start and end points for each token.
