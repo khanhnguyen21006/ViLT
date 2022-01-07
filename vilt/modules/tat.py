@@ -71,6 +71,7 @@ class TransformAndTell(pl.LightningModule):
         # ===================== load downstream (test_only) ======================
 
         if self.hparams.config["load_path"] != "" and self.hparams.config["test_only"]:
+            print("Loading pretrained weights...")
             ckpt = torch.load(self.hparams.config["load_path"], map_location="cpu")
             state_dict = ckpt["state_dict"]
             self.load_state_dict(state_dict, strict=False)
@@ -117,10 +118,10 @@ class TransformAndTell(pl.LightningModule):
 
     def infer(self, batch):
 
-        do_mlm = "_nmlm" if self.hparams.config["loss_names"]["nmlm"] > 0 else ""
+        do_nmlm = "_nmlm" if self.hparams.config["loss_names"]["nmlm"] > 0 and self.hparams.config["test_only"] is False else ""
 
-        caption_ids = batch[f"caption{do_mlm}_ids"]
-        caption_masks = batch[f"caption{do_mlm}_masks"]
+        caption_ids = batch[f"caption{do_nmlm}_ids"]
+        caption_masks = batch[f"caption{do_nmlm}_masks"]
         gt_caption_ids = batch["caption_ids"]
         target_ids = torch.zeros_like(gt_caption_ids)
         target_ids[:, :-1] = gt_caption_ids[:, 1:]
@@ -262,7 +263,7 @@ class TransformAndTell(pl.LightningModule):
 
             self.decoder.filter_incremental_state(incremental_state, active_idx)
 
-            decoder_out = self.decoder(prev_target, X_image[:, full_active_idx], image_padding_mask[full_active_idx], X_article[:, full_active_idx], article_padding_mask[full_active_idx])
+            decoder_out = self.decoder(prev_target, X_image[:, full_active_idx], image_padding_mask[full_active_idx], X_article[:, full_active_idx], article_padding_mask[full_active_idx], incremental_state=incremental_state)
 
             # We're only interested in the current final word
             decoder_out = decoder_out[0][:, -1:]
@@ -270,7 +271,7 @@ class TransformAndTell(pl.LightningModule):
             # lprobs = self.decoder.get_normalized_probs(
             #     decoder_out, log_probs=True)
             # lprobs.shape == [batch_size, 1, vocab_size]
-            lprobs = self.clm_score(decoder_out)
+            lprobs = self.nmlm_score(decoder_out)
 
             lprobs = lprobs.squeeze(1)
             # lprobs.shape == [batch_size, vocab_size]
