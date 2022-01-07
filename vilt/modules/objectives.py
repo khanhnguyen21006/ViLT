@@ -615,6 +615,8 @@ def nmlm_test_step(pl_module, batch):
         "captions": batch["caption"],
         "generations": gen_texts,
         "image_ids": batch["image_id"],
+        "image_urls": batch["image_url"],
+        "contexts": batch["context"]
     }
 
     return ret
@@ -801,7 +803,7 @@ def vqa_test_wrapup(outs, model_name):
     os.remove(f"vqa_submit_{rank}.json")
 
 
-def nmlm_test_wrapup(outs):
+def nmlm_test_wrapup(outs, serialization_dir):
     caps, gens = list(), list()
     for out in outs:
         caps += out["captions"]
@@ -817,23 +819,34 @@ def nmlm_test_wrapup(outs):
         "bleu-3": 0,
         "bleu-4": 0,
         "n_samples": 0,
-        "n_batches": 0
     }
+    out_path = os.path.join(serialization_dir, 'generations.jsonl')
+    with open(out_path, 'a') as f:
+        for gen, ref, img_id, img_url, cntx in zip(gen_texts_2, captions_2, outs["image_ids"], outs["image_urls"], outs["contexts"]):
+            bleu_scorer = BleuScorer(n=4)
+            bleu_scorer += (gen, [ref])
+            score, _ = bleu_scorer.compute_score(option='closest')
+            metrics['bleu-1'] += score[0] * 100
+            metrics['bleu-2'] += score[1] * 100
+            metrics['bleu-3'] += score[2] * 100
+            metrics[''] += score[3] * 100
+            metrics['n_samples'] += 1
 
-    for gen, ref in zip(gen_texts_2, captions_2):
-        bleu_scorer = BleuScorer(n=4)
-        bleu_scorer += (gen, [ref])
-        score, _ = bleu_scorer.compute_score(option='closest')
-        metrics['bleu-1'] += score[0] * 100
-        metrics['bleu-2'] += score[1] * 100
-        metrics['bleu-3'] += score[2] * 100
-        metrics['bleu-4'] += score[3] * 100
-        metrics['n_samples'] += 1
-        metrics['n_batches'] += 1
+            obj = {
+                'caption': ref,
+                'generation': gen,
+                'context': cntx,
+                'img_id': cntx,
+                'img_url': cntx,
+                'bleu-4': score[3]
+            }
+            f.write(f'{json.dumps(obj)}\n')
 
-    for key, value in metrics.items():
-        metrics[key] = value / metrics['n_samples']
-    print(metrics)
+        for key, value in metrics.items():
+            metrics[key] = value / metrics['n_samples']
+        print(metrics)
+
+
 
 
 def arc_test_wrapup(outs, caplen, model_name):

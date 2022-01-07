@@ -351,7 +351,7 @@ class TransformAndTell(pl.LightningModule):
         model_name = self.hparams.config["load_path"].split("/")[-1][:-5]
 
         if self.hparams.config["loss_names"]["nmlm"] > 0:
-            objectives.nmlm_test_wrapup(outs)
+            objectives.nmlm_test_wrapup(outs, self.hparams.config["log_dir"])
         vilt_utils.epoch_wrapup(self)
 
     def configure_optimizers(self):

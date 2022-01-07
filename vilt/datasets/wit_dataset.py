@@ -32,6 +32,9 @@ class WitDataset(Dataset):
         with open(os.path.join(self.data_dir, self.split + '_IMAGEIDS_wit_100_min_word_freq.json'), 'r') as j:
             self.image_ids = json.load(j)
 
+        with open(os.path.join(self.data_dir, self.split + '_IMAGEURLS_wit_100_min_word_freq.json'), 'r') as j:
+            self.image_urls = json.load(j)
+
         with open(os.path.join(self.data_dir, self.split + '_RAWSTRDESCS_wit_100_min_word_freq.json'), 'r') as j:
             self.str_descriptions = json.load(j)
 
@@ -60,10 +63,11 @@ class WitDataset(Dataset):
         str_caption = self.str_captions[index]
         context = self.get_text(str_description)
         caption = self.get_text(str_caption, self.nmlm)
-
+        image_url = self.image_urls[index]
         ret = {
             "image": img,
             "image_id": img_id,
+            "image_url": image_url,
             "context": context["text"],
             "caption": caption["text"],
         }
