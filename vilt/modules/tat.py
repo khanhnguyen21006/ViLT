@@ -75,6 +75,10 @@ class TransformAndTell(pl.LightningModule):
             state_dict = ckpt["state_dict"]
             self.load_state_dict(state_dict, strict=False)
 
+        # to be added in config
+        self.sampling_topk = 1
+        self.sampling_temp = 1
+
     def init_weights(self, module):
         if isinstance(module, nn.Embedding):
             std = math.sqrt(1 / module.weight.shape[1])
@@ -113,7 +117,7 @@ class TransformAndTell(pl.LightningModule):
 
     def infer(self, batch):
 
-        do_mlm = "_nmlm" if self.hparams.config["draw_false_text"]["loss_names"]["nmlm"] > 0 else ""
+        do_mlm = "_nmlm" if self.hparams.config["loss_names"]["nmlm"] > 0 else ""
 
         caption_ids = batch[f"caption{do_mlm}_ids"]
         caption_masks = batch[f"caption{do_mlm}_masks"]
@@ -252,16 +256,16 @@ class TransformAndTell(pl.LightningModule):
 
         for i in range(gen_len):
             if i == 0:
-                prev_target = {self.index: seed_input}
+                prev_target = seed_input
             else:
-                prev_target = {self.index: seed_input[:, -1:]}
+                prev_target = seed_input[:, -1:]
 
             self.decoder.filter_incremental_state(incremental_state, active_idx)
 
-            decoder_out = self.decoder(prev_target, X_image, image_padding_mask, X_article, article_padding_mask)
+            decoder_out = self.decoder(prev_target, X_image[:, full_active_idx], image_padding_mask[full_active_idx], X_article[:, full_active_idx], article_padding_mask[full_active_idx])
 
             # We're only interested in the current final word
-            decoder_out = (decoder_out[0][:, -1:], None)
+            decoder_out = decoder_out[0][:, -1:]
 
             # lprobs = self.decoder.get_normalized_probs(
             #     decoder_out, log_probs=True)
