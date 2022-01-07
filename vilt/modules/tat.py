@@ -342,15 +342,15 @@ class TransformAndTell(pl.LightningModule):
         vilt_utils.set_task(self)
         ret = self(batch)
 
-        if self.hparams.config["loss_names"]["clm"] > 0:
-            ret.update(objectives.clm_test_step(self, batch))
+        if self.hparams.config["loss_names"]["nmlm"] > 0:
+            ret.update(objectives.nmlm_test_step(self, batch))
         return ret
 
     def test_epoch_end(self, outs):
         model_name = self.hparams.config["load_path"].split("/")[-1][:-5]
 
-        if self.hparams.config["loss_names"]["clm"] > 0:
-            objectives.clm_test_wrapup(outs)
+        if self.hparams.config["loss_names"]["nmlm"] > 0:
+            objectives.nmlm_test_wrapup(outs)
         vilt_utils.epoch_wrapup(self)
 
     def configure_optimizers(self):

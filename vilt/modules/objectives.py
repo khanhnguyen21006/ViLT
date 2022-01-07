@@ -606,7 +606,7 @@ def compute_irtr(pl_module, batch):
     return ret
 
 
-def clm_test_step(pl_module, batch):
+def nmlm_test_step(pl_module, batch):
     _, gen_ids = pl_module.generate(batch)
     # We ignore <s> and <pad>
     gen_texts = [pl_module.roberta.decode(x[x > 1]) for x in gen_ids.cpu()]
@@ -801,7 +801,7 @@ def vqa_test_wrapup(outs, model_name):
     os.remove(f"vqa_submit_{rank}.json")
 
 
-def clm_test_wrapup(outs):
+def nmlm_test_wrapup(outs):
     caps, gens = list(), list()
     for out in outs:
         caps += out["captions"]
@@ -834,6 +834,7 @@ def clm_test_wrapup(outs):
     for key, value in metrics.items():
         metrics[key] = value / metrics['n_samples']
     print(metrics)
+
 
 def arc_test_wrapup(outs, caplen, model_name):
     rank = torch.distributed.get_rank()
