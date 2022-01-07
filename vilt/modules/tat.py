@@ -68,6 +68,13 @@ class TransformAndTell(pl.LightningModule):
         vilt_utils.set_metrics(self)
         self.current_tasks = list()
 
+        # ===================== load downstream (test_only) ======================
+
+        if self.hparams.config["load_path"] != "" and self.hparams.config["test_only"]:
+            ckpt = torch.load(self.hparams.config["load_path"], map_location="cpu")
+            state_dict = ckpt["state_dict"]
+            self.load_state_dict(state_dict, strict=False)
+
     def init_weights(self, module):
         if isinstance(module, nn.Embedding):
             std = math.sqrt(1 / module.weight.shape[1])
@@ -106,16 +113,13 @@ class TransformAndTell(pl.LightningModule):
 
     def infer(self, batch):
 
-        # do_mlm = "_mlm" if mask_text else ""
-        # text_ids = batch[f"text_ids{do_mlm}"]
-        # text_labels = batch[f"text_labels{do_mlm}"]
-        # text_masks = batch[f"text_masks"]
-        # text_embeds = self.text_embeddings(text_ids)
+        do_mlm = "_nmlm" if self.hparams.config["draw_false_text"]["loss_names"]["nmlm"] > 0 else ""
 
-        caption_ids = batch["caption_ids"]
-        caption_masks = batch["caption_masks"]
-        target_ids = torch.zeros_like(caption_ids)
-        target_ids[:, :-1] = caption_ids[:, 1:]
+        caption_ids = batch[f"caption{do_mlm}_ids"]
+        caption_masks = batch[f"caption{do_mlm}_masks"]
+        gt_caption_ids = batch["caption_ids"]
+        target_ids = torch.zeros_like(gt_caption_ids)
+        target_ids[:, :-1] = gt_caption_ids[:, 1:]
         target_ids = target_ids[:, :-1]
 
         # Embed the image
@@ -188,6 +192,131 @@ class TransformAndTell(pl.LightningModule):
 
         return ret
 
+    def generate(self, batch):
+        caption_ids = batch["caption_ids"]
+        # Embed the image
+        image = batch["image"]
+        X_image = self.resnet(image)
+        # X_image.shape == [batch_size, 2048, 7, 7]
+
+        X_image = X_image.permute(0, 2, 3, 1)
+        # X_image.shape == [batch_size, 7, 7, 2048]
+
+        # Flatten out the image
+        B, H, W, C = X_image.shape
+        P = H * W  # number of pixels
+        X_image = X_image.view(B, P, C)
+        # X_image.shape == [batch_size, 49, 2048]
+
+        article_ids = batch["context_ids"]
+        # article_ids.shape == [batch_size, seq_len]
+
+        article_padding_mask = article_ids == self.padding_idx
+        # article_padding_mask.shape == [batch_size, seq_len]
+
+        B, S = article_ids.shape
+
+        X_sections_hiddens = self.roberta.extract_features(
+            article_ids, return_all_hiddens=True)
+
+        if self.weigh_bert:
+            X_article = torch.stack(X_sections_hiddens, dim=2)
+            # X_article.shape == [batch_size, seq_len, 13, embed_size]
+
+            weight = F.softmax(self.bert_weight, dim=0)
+            weight = weight.unsqueeze(0).unsqueeze(1).unsqueeze(3)
+            # weight.shape == [1, 1, 13, 1]
+
+            X_article = (X_article * weight).sum(dim=2)
+            # X_article.shape == [batch_size, seq_len, embed_size]
+
+        else:
+            X_article = X_sections_hiddens[-1]
+            # X_article.shape == [batch_size, seq_len, embed_size]
+
+        # Create padding mask (1 corresponds to the padding index)
+        image_padding_mask = X_image.new_zeros(B, P).bool()
+
+        X_image = X_image.transpose(0, 1)
+        X_article = X_article.transpose(0, 1)
+
+        incremental_state = {}
+        seed_input = caption_ids[:, 0:1]
+        log_prob_list = []
+        index_path_list = [seed_input]
+        eos = 2
+        active_idx = seed_input[:, -1] != eos
+        full_active_idx = active_idx
+        gen_len = 100
+        B = caption_ids.shape[0]
+
+        for i in range(gen_len):
+            if i == 0:
+                prev_target = {self.index: seed_input}
+            else:
+                prev_target = {self.index: seed_input[:, -1:]}
+
+            self.decoder.filter_incremental_state(incremental_state, active_idx)
+
+            decoder_out = self.decoder(prev_target, X_image, image_padding_mask, X_article, article_padding_mask)
+
+            # We're only interested in the current final word
+            decoder_out = (decoder_out[0][:, -1:], None)
+
+            # lprobs = self.decoder.get_normalized_probs(
+            #     decoder_out, log_probs=True)
+            # lprobs.shape == [batch_size, 1, vocab_size]
+            lprobs = self.clm_score(decoder_out)
+
+            lprobs = lprobs.squeeze(1)
+            # lprobs.shape == [batch_size, vocab_size]
+
+            topk_lprobs, topk_indices = lprobs.topk(self.sampling_topk)
+            topk_lprobs = topk_lprobs.div_(self.sampling_temp)
+            # topk_lprobs.shape == [batch_size, topk]
+
+            # Take a random sample from those top k
+            topk_probs = topk_lprobs.exp()
+            sampled_index = torch.multinomial(topk_probs, num_samples=1)
+            # sampled_index.shape == [batch_size, 1]
+
+            selected_lprob = topk_lprobs.gather(
+                dim=-1, index=sampled_index)
+            # selected_prob.shape == [batch_size, 1]
+
+            selected_index = topk_indices.gather(
+                dim=-1, index=sampled_index)
+            # selected_index.shape == [batch_size, 1]
+
+            log_prob = selected_lprob.new_zeros(B, 1)
+            log_prob[full_active_idx] = selected_lprob
+
+            index_path = selected_index.new_full((B, 1), self.padding_idx)
+            index_path[full_active_idx] = selected_index
+
+            log_prob_list.append(log_prob)
+            index_path_list.append(index_path)
+
+            seed_input = torch.cat([seed_input, selected_index], dim=-1)
+
+            is_eos = selected_index.squeeze(-1) == eos
+            active_idx = ~is_eos
+
+            full_active_idx[full_active_idx.nonzero()[~active_idx]] = 0
+
+            seed_input = seed_input[active_idx]
+
+            if active_idx.sum().item() == 0:
+                break
+
+        log_probs = torch.cat(log_prob_list, dim=-1)
+        # log_probs.shape == [batch_size * beam_size, generate_len]
+
+        token_ids = torch.cat(index_path_list, dim=-1)
+        # token_ids.shape == [batch_size * beam_size, generate_len]
+
+        return log_probs, token_ids
+
     def training_step(self, batch, batch_idx):
         vilt_utils.set_task(self)
         output = self(batch)
@@ -207,19 +336,17 @@ class TransformAndTell(pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
         vilt_utils.set_task(self)
-        output = self(batch)
-        ret = dict()
+        ret = self(batch)
 
-        if self.hparams.config["loss_names"]["vqa"] > 0:
-            ret.update(objectives.vqa_test_step(self, batch, output))
-
+        if self.hparams.config["loss_names"]["clm"] > 0:
+            ret.update(objectives.clm_test_step(self, batch))
         return ret
 
     def test_epoch_end(self, outs):
         model_name = self.hparams.config["load_path"].split("/")[-1][:-5]
 
-        if self.hparams.config["loss_names"]["vqa"] > 0:
-            objectives.vqa_test_wrapup(outs, model_name)
+        if self.hparams.config["loss_names"]["clm"] > 0:
+            objectives.clm_test_wrapup(outs)
         vilt_utils.epoch_wrapup(self)
 
     def configure_optimizers(self):

@@ -12,3 +12,4 @@ spacy==2.1.9
 nltk==3.4.5
 h5py
 git+https://github.com/rwightman/pytorch-image-models.git
+git+https://github.com/salaniz/pycocoevalcap.git@a6b79b0fbd0f4f293634831e4e09405de2abc955

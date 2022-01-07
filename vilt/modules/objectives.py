@@ -6,9 +6,10 @@ import glob
 import json
 import tqdm
 import functools
-
+import re
 from torch.utils.data.distributed import DistributedSampler
 from einops import rearrange
+from pycocoevalcap.bleu.bleu_scorer import BleuScorer
 
 from vilt.modules.dist_utils import all_gather
 
@@ -605,6 +606,20 @@ def compute_irtr(pl_module, batch):
     return ret
 
 
+def clm_test_step(pl_module, batch):
+    _, gen_ids = pl_module.generate(batch)
+    # We ignore <s> and <pad>
+    gen_texts = [pl_module.roberta.decode(x[x > 1]) for x in gen_ids.cpu()]
+
+    ret = {
+        "captions": batch["caption"],
+        "generations": gen_texts,
+        "image_ids": batch["image_id"],
+    }
+
+    return ret
+
+
 @torch.no_grad()
 def compute_irtr_recall(pl_module):
     text_dset = pl_module.trainer.datamodule.dms[0].make_no_false_val_dset()
@@ -785,6 +800,40 @@ def vqa_test_wrapup(outs, model_name):
     torch.distributed.barrier()
     os.remove(f"vqa_submit_{rank}.json")
 
+
+def clm_test_wrapup(outs):
+    caps, gens = list(), list()
+    for out in outs:
+        caps += out["captions"]
+        gens += out["generations"]
+
+    # Remove punctuation
+    gen_texts_2 = [re.sub(r'[^\w\s]', '', t) for t in gens]
+    captions_2 = [re.sub(r'[^\w\s]', '', t) for t in caps]
+
+    metrics = {
+        "bleu-1": 0,
+        "bleu-2": 0,
+        "bleu-3": 0,
+        "bleu-4": 0,
+        "n_samples": 0,
+        "n_batches": 0
+    }
+
+    for gen, ref in zip(gen_texts_2, captions_2):
+        bleu_scorer = BleuScorer(n=4)
+        bleu_scorer += (gen, [ref])
+        score, _ = bleu_scorer.compute_score(option='closest')
+        metrics['bleu-1'] += score[0] * 100
+        metrics['bleu-2'] += score[1] * 100
+        metrics['bleu-3'] += score[2] * 100
+        metrics['bleu-4'] += score[3] * 100
+        metrics['n_samples'] += 1
+        metrics['n_batches'] += 1
+
+    for key, value in metrics.items():
+        metrics[key] = value / metrics['n_samples']
+    print(metrics)
 
 def arc_test_wrapup(outs, caplen, model_name):
     rank = torch.distributed.get_rank()
