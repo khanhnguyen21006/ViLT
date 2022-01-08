@@ -271,7 +271,10 @@ class TransformAndTell(pl.LightningModule):
             # lprobs = self.decoder.get_normalized_probs(
             #     decoder_out, log_probs=True)
             # lprobs.shape == [batch_size, 1, vocab_size]
-            lprobs = self.nmlm_score(decoder_out)
+            if self.hparams.config["loss_names"]["nmlm"] > 0:
+                lprobs = self.nmlm_score(decoder_out)
+            else:
+                lprobs = self.clm_score(decoder_out)
 
             lprobs = lprobs.squeeze(1)
             # lprobs.shape == [batch_size, vocab_size]
