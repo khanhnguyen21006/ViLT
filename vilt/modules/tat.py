@@ -345,12 +345,18 @@ class TransformAndTell(pl.LightningModule):
 
         if self.hparams.config["loss_names"]["nmlm"] > 0:
             ret.update(objectives.nmlm_test_step(self, batch))
+
+        if self.hparams.config["loss_names"]["clm"] > 0:
+            ret.update(objectives.nmlm_test_step(self, batch))
+
         return ret
 
     def test_epoch_end(self, outs):
         model_name = self.hparams.config["load_path"].split("/")[-1][:-5]
 
         if self.hparams.config["loss_names"]["nmlm"] > 0:
+            objectives.nmlm_test_wrapup(outs, self.hparams.config["log_dir"])
+        if self.hparams.config["loss_names"]["clm"] > 0:
             objectives.nmlm_test_wrapup(outs, self.hparams.config["log_dir"])
         vilt_utils.epoch_wrapup(self)
 

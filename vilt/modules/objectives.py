@@ -847,8 +847,6 @@ def nmlm_test_wrapup(outs, serialization_dir):
         print(metrics)
 
 
-
-
 def arc_test_wrapup(outs, caplen, model_name):
     rank = torch.distributed.get_rank()
     iids, captions = list(), list()

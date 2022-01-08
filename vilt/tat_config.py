@@ -186,6 +186,18 @@ def task_finetune_nmlm():
     draw_false_image = 0
     learning_rate = 1e-4
 
+
+@ex.named_config
+def task_finetune_clm():
+    exp_name = "finetune_transform_and_tell_clm"
+    loss_names = _loss_names({"clm": 1})
+    batch_size = 128
+    max_epoch = 10
+    max_steps = None
+    warmup_steps = 0.1
+    draw_false_image = 0
+    learning_rate = 1e-4
+
 # Named configs for "etc" which are orthogonal to "env" and "task", need to be added at the end
 
 
