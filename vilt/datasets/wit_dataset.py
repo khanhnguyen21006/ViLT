@@ -128,7 +128,7 @@ class WitDataset(Dataset):
         keys = set([key for b in batch for key in b.keys()])
         dict_batch = {k: [dic[k] if k in dic else None for dic in batch] for k in keys}
 
-        img_keys = [k for k in list(dict_batch.keys()) if "image" in k]
+        img_keys = [k for k in list(dict_batch.keys()) if "_image_" in k or k == "image"]
         for img_key in img_keys:
             dict_batch[img_key] = torch.stack(dict_batch[img_key])
 
