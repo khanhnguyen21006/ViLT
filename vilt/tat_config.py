@@ -68,7 +68,7 @@ def config():
 
     # below params varies with the environment
     data_root = ""
-    log_dir = "result"
+    log_dir = "results"
     per_gpu_batchsize = 0  # you should define this manually with per_gpu_batch_size=#
     num_gpus = 1
     num_nodes = 1
@@ -87,7 +87,7 @@ def config():
 @ex.named_config
 def env_dandelin():
     data_root = "/data2fast/users/vkhanh/data/"
-    log_dir = "/data2/vilt/result"
+    log_dir = "/data2/vilt/results"
     num_gpus = 1
     num_nodes = 1
 

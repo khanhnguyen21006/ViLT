@@ -804,10 +804,13 @@ def vqa_test_wrapup(outs, model_name):
 
 
 def nmlm_test_wrapup(outs, serialization_dir):
-    caps, gens = list(), list()
+    caps, gens, ids, urls, cntxs = list(), list(), list(), list(), list()
     for out in outs:
         caps += out["captions"]
         gens += out["generations"]
+        ids += out["image_ids"]
+        urls += out["image_urls"]
+        cntxs += out["contexts"]
 
     # Remove punctuation
     gen_texts_2 = [re.sub(r'[^\w\s]', '', t) for t in gens]
@@ -822,14 +825,14 @@ def nmlm_test_wrapup(outs, serialization_dir):
     }
     out_path = os.path.join(serialization_dir, 'generations.jsonl')
     with open(out_path, 'a') as f:
-        for gen, ref, img_id, img_url, cntx in zip(gen_texts_2, captions_2, outs["image_ids"], outs["image_urls"], outs["contexts"]):
+        for gen, ref, img_id, img_url, cntx in zip(gen_texts_2, captions_2, ids, urls, cntxs):
             bleu_scorer = BleuScorer(n=4)
             bleu_scorer += (gen, [ref])
             score, _ = bleu_scorer.compute_score(option='closest')
             metrics['bleu-1'] += score[0] * 100
             metrics['bleu-2'] += score[1] * 100
             metrics['bleu-3'] += score[2] * 100
-            metrics[''] += score[3] * 100
+            metrics['bleu-4'] += score[3] * 100
             metrics['n_samples'] += 1
 
             obj = {
