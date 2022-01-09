@@ -121,7 +121,7 @@ class TransformAndTell(pl.LightningModule):
         do_nmlm = "_nmlm" if self.hparams.config["loss_names"]["nmlm"] > 0 and self.hparams.config["test_only"] is False else ""
 
         caption_ids = batch[f"caption{do_nmlm}_ids"]
-        caption_masks = batch[f"caption{do_nmlm}_masks"]
+        caption_masks = batch[f"caption_masks"]
         gt_caption_ids = batch["caption_ids"]
         target_ids = torch.zeros_like(gt_caption_ids)
         target_ids[:, :-1] = gt_caption_ids[:, 1:]
