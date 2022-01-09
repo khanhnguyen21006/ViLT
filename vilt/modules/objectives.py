@@ -811,7 +811,7 @@ def nmlm_test_wrapup(outs, serialization_dir):
         for out in outs:
             caps += out["captions"]
             gens += out["generations"]
-            ids += out["image_ids"]
+            ids += [o.item() for o in out["image_ids"]]
             urls += out["image_urls"]
             cntxs += out["contexts"]
 
@@ -832,10 +832,11 @@ def nmlm_test_wrapup(outs, serialization_dir):
     torch.distributed.barrier()
     if rank == 0:
         jsons = list()
-        paths = list(glob.glob("generations_*.jsonl"))
+        paths = list(glob.glob(serialization_dir + "/generations_*.jsonl"))
         for path in paths:
             with open(path, "r") as fp:
-                jsons += json.load(fp)
+                jsonl_content = list(fp)
+                jsons += [json.loads(jline) for jline in jsonl_content]
 
         out_final_path = os.path.join(serialization_dir, 'generations.jsonl')
         with open(out_final_path, "a") as fp:
