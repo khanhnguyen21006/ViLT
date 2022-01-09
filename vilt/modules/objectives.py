@@ -807,8 +807,27 @@ def nmlm_test_wrapup(outs, serialization_dir):
     rank = torch.distributed.get_rank()
     out_path = os.path.join(serialization_dir, f'generations_{rank}.jsonl')
     with open(out_path, 'a') as f:
+        caps, gens, ids, urls, cntxs = list(), list(), list(), list(), list()
         for out in outs:
-            f.write(f'{json.dumps(out)}\n')
+            caps += out["captions"]
+            gens += out["generations"]
+            ids += out["image_ids"]
+            urls += out["image_urls"]
+            cntxs += out["contexts"]
+
+        # Remove punctuation
+        gen_texts_2 = [re.sub(r'[^\w\s]', '', t) for t in gens]
+        captions_2 = [re.sub(r'[^\w\s]', '', t) for t in caps]
+
+        for gen, ref, img_id, img_url, cntx in zip(gen_texts_2, captions_2, ids, urls, cntxs):
+            sam_obj = {
+                'caption': ref,
+                'generation': gen,
+                'context': cntx,
+                'img_id': img_id,
+                'img_url': img_url,
+            }
+            f.write(f'{json.dumps(sam_obj)}\n')
 
     torch.distributed.barrier()
     if rank == 0:
@@ -820,18 +839,6 @@ def nmlm_test_wrapup(outs, serialization_dir):
 
         out_final_path = os.path.join(serialization_dir, 'generations.jsonl')
         with open(out_final_path, "a") as fp:
-            caps, gens, ids, urls, cntxs = list(), list(), list(), list(), list()
-            for obj in jsons:
-                caps += obj["captions"]
-                gens += obj["generations"]
-                ids += obj["image_ids"]
-                urls += obj["image_urls"]
-                cntxs += obj["contexts"]
-
-            # Remove punctuation
-            gen_texts_2 = [re.sub(r'[^\w\s]', '', t) for t in gens]
-            captions_2 = [re.sub(r'[^\w\s]', '', t) for t in caps]
-
             metrics = {
                 "bleu-1": 0,
                 "bleu-2": 0,
@@ -839,10 +846,9 @@ def nmlm_test_wrapup(outs, serialization_dir):
                 "bleu-4": 0,
             }
             n_samples = 0
-
-            for gen, ref, img_id, img_url, cntx in zip(gen_texts_2, captions_2, ids, urls, cntxs):
+            for obj in jsons:
                 bleu_scorer = BleuScorer(n=4)
-                bleu_scorer += (gen, [ref])
+                bleu_scorer += (obj['generation'], [obj['caption']])
                 score, _ = bleu_scorer.compute_score(option='closest')
                 metrics['bleu-1'] += score[0] * 100
                 metrics['bleu-2'] += score[1] * 100
@@ -850,14 +856,7 @@ def nmlm_test_wrapup(outs, serialization_dir):
                 metrics['bleu-4'] += score[3] * 100
                 n_samples += 1
 
-                obj = {
-                    'caption': ref,
-                    'generation': gen,
-                    'context': cntx,
-                    'img_id': img_id,
-                    'img_url': img_url,
-                    'bleu-4': score[3]
-                }
+                obj['bleu-4'] = score[3]
                 fp.write(f'{json.dumps(obj)}\n')
 
             for key, value in metrics.items():
@@ -865,7 +864,7 @@ def nmlm_test_wrapup(outs, serialization_dir):
             print(metrics)
 
     torch.distributed.barrier()
-    os.remove(f"generations_{rank}.json")
+    os.remove(out_path)
 
 
 def arc_test_wrapup(outs, caplen, model_name):
