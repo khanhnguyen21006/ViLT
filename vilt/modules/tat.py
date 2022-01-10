@@ -344,8 +344,8 @@ class TransformAndTell(pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
         vilt_utils.set_task(self)
-        ret = self(batch)
-
+        # ret = self(batch)
+        ret = dict()
         if self.hparams.config["loss_names"]["nmlm"] > 0:
             ret.update(objectives.nmlm_test_step(self, batch))
 

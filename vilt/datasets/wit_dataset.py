@@ -35,10 +35,10 @@ class WitDataset(Dataset):
         with open(os.path.join(self.data_dir, self.split + '_IMAGEURLS_wit_100_min_word_freq.json'), 'r') as j:
             self.image_urls = json.load(j)
 
-        with open(os.path.join(self.data_dir, self.split + '_RAWSTRDESCS_wit_100_min_word_freq.json'), 'r') as j:
+        with open(os.path.join(self.data_dir, self.split + '_STRDESCS_wit_100_min_word_freq.json'), 'r') as j:
             self.str_descriptions = json.load(j)
 
-        with open(os.path.join(self.data_dir, self.split + '_RAWSTRCAPS_wit_100_min_word_freq.json'), 'r') as j:
+        with open(os.path.join(self.data_dir, self.split + '_STRCAPS_wit_100_min_word_freq.json'), 'r') as j:
             self.str_captions = json.load(j)
 
         self.dataset_size = len(self.str_captions)
@@ -61,6 +61,8 @@ class WitDataset(Dataset):
         img_id = torch.LongTensor([self.image_ids[index]])
         str_description = self.str_descriptions[index]
         str_caption = self.str_captions[index]
+        str_description = ' '.join(str_description).strip()
+        str_caption = ' '.join(str_caption).strip()
         context = self.get_text(str_description)
         caption = self.get_text(str_caption, self.nmlm)
         image_url = self.image_urls[index]
