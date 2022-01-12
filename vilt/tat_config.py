@@ -100,6 +100,7 @@ def task_clm():
     batch_size = 4096
     max_epoch = 10
     max_text_len = 512
+    draw_false_image = 0
 
 
 @ex.named_config

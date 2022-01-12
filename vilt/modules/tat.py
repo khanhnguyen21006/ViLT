@@ -185,7 +185,6 @@ class TransformAndTell(pl.LightningModule):
         text_feats = X_feats[:, :-1, :]
         ret = {
             "text_feats": text_feats,
-
             "text_labels": target_ids,
             "text_ids": caption_ids,
             "text_masks": caption_masks,
