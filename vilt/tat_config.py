@@ -176,18 +176,6 @@ def task_finetune_vqa_randaug():
 
 
 @ex.named_config
-def task_finetune_nmlm():
-    exp_name = "finetune_transform_and_tell_nmlm"
-    loss_names = _loss_names({"nmlm": 1})
-    batch_size = 128
-    max_epoch = 10
-    max_steps = None
-    warmup_steps = 0.1
-    draw_false_image = 0
-    learning_rate = 1e-4
-
-
-@ex.named_config
 def task_finetune_clm():
     exp_name = "finetune_transform_and_tell_clm"
     loss_names = _loss_names({"clm": 1})

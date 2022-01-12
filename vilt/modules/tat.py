@@ -118,7 +118,7 @@ class TransformAndTell(pl.LightningModule):
 
     def infer(self, batch):
 
-        do_nmlm = "_nmlm" if self.hparams.config["loss_names"]["nmlm"] > 0 and self.hparams.config["test_only"] is False else ""
+        do_nmlm = "_nmlm" if self.hparams.config["loss_names"]["nmlm"] > 0 else ""
 
         caption_ids = batch[f"caption{do_nmlm}_ids"]
         caption_masks = batch[f"caption_masks"]
@@ -171,6 +171,7 @@ class TransformAndTell(pl.LightningModule):
         image_padding_mask = X_image.new_zeros(B, P).bool()
 
         image_feats = X_image
+        article_feats = X_article
         X_image = X_image.transpose(0, 1)
         X_article = X_article.transpose(0, 1)
 
@@ -193,57 +194,19 @@ class TransformAndTell(pl.LightningModule):
             "text_ids": caption_ids,
             "text_masks": caption_masks,
             "image_feats": image_feats,
+            "article_feats": article_feats,
+            "image_padding_mask": image_padding_mask,
+            "article_padding_mask": article_padding_mask,
         }
 
         return ret
 
-    def generate(self, batch):
+    def generate(self, batch, context):
         caption_ids = batch["caption_ids"]
-        # Embed the image
-        image = batch["image"]
-        X_image = self.resnet(image)
-        # X_image.shape == [batch_size, 2048, 7, 7]
-
-        X_image = X_image.permute(0, 2, 3, 1)
-        # X_image.shape == [batch_size, 7, 7, 2048]
-
-        # Flatten out the image
-        B, H, W, C = X_image.shape
-        P = H * W  # number of pixels
-        X_image = X_image.view(B, P, C)
-        # X_image.shape == [batch_size, 49, 2048]
-
-        article_ids = batch["context_ids"]
-        # article_ids.shape == [batch_size, seq_len]
-
-        article_padding_mask = article_ids == self.padding_idx
-        # article_padding_mask.shape == [batch_size, seq_len]
-
-        B, S = article_ids.shape
-
-        X_sections_hiddens = self.roberta.extract_features(
-            article_ids, return_all_hiddens=True)
-
-        if self.weigh_bert:
-            X_article = torch.stack(X_sections_hiddens, dim=2)
-            # X_article.shape == [batch_size, seq_len, 13, embed_size]
-
-            weight = F.softmax(self.bert_weight, dim=0)
-            weight = weight.unsqueeze(0).unsqueeze(1).unsqueeze(3)
-            # weight.shape == [1, 1, 13, 1]
-
-            X_article = (X_article * weight).sum(dim=2)
-            # X_article.shape == [batch_size, seq_len, embed_size]
-
-        else:
-            X_article = X_sections_hiddens[-1]
-            # X_article.shape == [batch_size, seq_len, embed_size]
-
-        # Create padding mask (1 corresponds to the padding index)
-        image_padding_mask = X_image.new_zeros(B, P).bool()
-
-        X_image = X_image.transpose(0, 1)
-        X_article = X_article.transpose(0, 1)
+        X_image = context["image_feats"].transpose(0, 1)
+        X_article = context["article_feats"].transpose(0, 1)
+        image_padding_mask = context["image_padding_mask"]
+        article_padding_mask = context["article_padding_mask"]
 
         incremental_state = {}
         seed_input = caption_ids[:, 0:1]
@@ -271,10 +234,7 @@ class TransformAndTell(pl.LightningModule):
             # lprobs = self.decoder.get_normalized_probs(
             #     decoder_out, log_probs=True)
             # lprobs.shape == [batch_size, 1, vocab_size]
-            if self.hparams.config["loss_names"]["nmlm"] > 0:
-                lprobs = self.nmlm_score(decoder_out)
-            else:
-                lprobs = self.clm_score(decoder_out)
+            lprobs = self.clm_score(decoder_out)
 
             lprobs = lprobs.squeeze(1)
             # lprobs.shape == [batch_size, vocab_size]
@@ -344,23 +304,19 @@ class TransformAndTell(pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
         vilt_utils.set_task(self)
-        # ret = self(batch)
-        ret = dict()
-        if self.hparams.config["loss_names"]["nmlm"] > 0:
-            ret.update(objectives.nmlm_test_step(self, batch))
+        ret = self(batch)
+        # ret = dict()
 
         if self.hparams.config["loss_names"]["clm"] > 0:
-            ret.update(objectives.nmlm_test_step(self, batch))
+            ret.update(objectives.clm_test_step(self, batch, ret["context"]))
 
         return ret
 
     def test_epoch_end(self, outs):
         model_name = self.hparams.config["load_path"].split("/")[-1][:-5]
 
-        if self.hparams.config["loss_names"]["nmlm"] > 0:
-            objectives.nmlm_test_wrapup(outs, self.hparams.config["log_dir"])
         if self.hparams.config["loss_names"]["clm"] > 0:
-            objectives.nmlm_test_wrapup(outs, self.hparams.config["log_dir"])
+            objectives.clm_test_wrapup(outs, self.hparams.config["log_dir"])
         vilt_utils.epoch_wrapup(self)
 
     def configure_optimizers(self):
