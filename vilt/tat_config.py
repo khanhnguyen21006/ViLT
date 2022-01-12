@@ -94,13 +94,12 @@ def env_dandelin():
 
 # Named configs for "task" which define datasets, loss_names and desired batch_size, warmup_steps, epochs, and exp_name
 @ex.named_config
-def task_clm_itm():
-    exp_name = "transform_and_tell_clm_itm"
-    loss_names = _loss_names({"itm": 1, "clm": 1})
+def task_clm():
+    exp_name = "transform_and_tell_clm"
+    loss_names = _loss_names({"clm": 1})
     batch_size = 4096
     max_epoch = 10
     max_text_len = 512
-    draw_false_image = 1
 
 
 @ex.named_config
