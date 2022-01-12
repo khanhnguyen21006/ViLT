@@ -36,8 +36,6 @@ class TransformAndTell(pl.LightningModule):
                                           config['decoder_layers'], config['final_norm'], config['vocab_size'], config['article_embed_size'])
         self.padding_idx = config['padding_idx']
         self.decoder.apply(self.init_weights)
-        self.pooler = tat_heads.WitPooler(config["embed_output_dim"])
-        self.pooler.apply(self.init_weights)
 
         if config["loss_names"]["clm"] > 0:
             bert_config = BertConfig(
@@ -56,10 +54,14 @@ class TransformAndTell(pl.LightningModule):
             self.nmlm_score.apply(self.init_weights)
 
         if config["loss_names"]["itm"] > 0:
+            self.pooler = tat_heads.WitPooler(config["embed_output_dim"])
+            self.pooler.apply(self.init_weights)
             self.itm_score = tat_heads.ITMHead(config["embed_output_dim"])
             self.itm_score.apply(self.init_weights)
 
         if config["loss_names"]["itm_wpa"] > 0:
+            self.pooler = tat_heads.WitPooler(config["embed_output_dim"])
+            self.pooler.apply(self.init_weights)
             self.itm_score = tat_heads.ITMHead(config["embed_output_dim"])
             self.wpa_embed = tat_heads.ITMWPAHead(config["embed_output_dim"])
             self.itm_score.apply(self.init_weights)
@@ -180,16 +182,10 @@ class TransformAndTell(pl.LightningModule):
 
         X_feats, _ = X
 
-        batch_cls_out = []
-        for b in range(caption_masks.shape[0]):
-            batch_cls_out.append(X_feats[b][caption_masks[b], :][-1])
         text_feats = X_feats[:, :-1, :]
-        cls_feats = self.pooler(torch.stack(batch_cls_out))
-
         ret = {
             "text_feats": text_feats,
-            "cls_feats": cls_feats,
-            "raw_cls_feats": torch.stack(batch_cls_out),
+
             "text_labels": target_ids,
             "text_ids": caption_ids,
             "text_masks": caption_masks,
@@ -198,6 +194,15 @@ class TransformAndTell(pl.LightningModule):
             "image_padding_mask": image_padding_mask,
             "article_padding_mask": article_padding_mask,
         }
+        if self.hparams.config["loss_names"]["itm"] > 0 or self.hparams.config["loss_names"]["itm_wpa"] > 0:
+            batch_cls_out = []
+            for b in range(caption_masks.shape[0]):
+                batch_cls_out.append(X_feats[b][caption_masks[b], :][-1])
+            cls_feats = self.pooler(torch.stack(batch_cls_out))
+            ret.update({
+                "cls_feats": cls_feats,
+                "raw_cls_feats": torch.stack(batch_cls_out),
+            })
 
         return ret
 
