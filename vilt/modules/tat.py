@@ -37,14 +37,6 @@ class TransformAndTell(pl.LightningModule):
         self.padding_idx = config['padding_idx']
         self.decoder.apply(self.init_weights)
 
-        if config["loss_names"]["clm"] > 0:
-            bert_config = BertConfig(
-                vocab_size=config["vocab_size"],
-                hidden_size=config["embed_output_dim"],
-            )
-            self.clm_score = tat_heads.CLMHead(bert_config)
-            self.clm_score.apply(self.init_weights)
-
         if config["loss_names"]["nmlm"] > 0:
             bert_config = BertConfig(
                 vocab_size=config["vocab_size"],
@@ -67,13 +59,32 @@ class TransformAndTell(pl.LightningModule):
             self.itm_score.apply(self.init_weights)
             self.wpa_embed.apply(self.init_weights)
 
+        # ===================== Downstream ===================== #
+        if self.hparams.config["load_path"] != "" and not self.hparams.config["test_only"]:
+            print("Loading pretrained weights for fine-tuning...")
+            ckpt = torch.load(self.hparams.config["load_path"], map_location="cpu")
+            state_dict = ckpt["state_dict"]
+            self.load_state_dict(state_dict, strict=False)
+
+        if config["loss_names"]["clm"] > 0:
+            bert_config = BertConfig(
+                vocab_size=config["vocab_size"],
+                hidden_size=config["embed_output_dim"],
+            )
+            self.clm_score = tat_heads.CLMHead(bert_config)
+            self.clm_score.apply(self.init_weights)
+            for p in self.itm_score.parameters():
+                p.requires_grad = False
+            for p in self.pooler.parameters():
+                p.requires_grad = False
+
         vilt_utils.set_metrics(self)
         self.current_tasks = list()
 
         # ===================== load downstream (test_only) ======================
 
         if self.hparams.config["load_path"] != "" and self.hparams.config["test_only"]:
-            print("Loading pretrained weights...")
+            print("Loading pretrained weights for testing...")
             ckpt = torch.load(self.hparams.config["load_path"], map_location="cpu")
             state_dict = ckpt["state_dict"]
             self.load_state_dict(state_dict, strict=False)
