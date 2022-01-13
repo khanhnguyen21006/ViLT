@@ -66,6 +66,11 @@ class TransformAndTell(pl.LightningModule):
             state_dict = ckpt["state_dict"]
             self.load_state_dict(state_dict, strict=False)
 
+            for p in self.itm_score.parameters():
+                p.requires_grad = False
+            for p in self.pooler.parameters():
+                p.requires_grad = False
+
         if config["loss_names"]["clm"] > 0:
             bert_config = BertConfig(
                 vocab_size=config["vocab_size"],
@@ -73,10 +78,6 @@ class TransformAndTell(pl.LightningModule):
             )
             self.clm_score = tat_heads.CLMHead(bert_config)
             self.clm_score.apply(self.init_weights)
-            for p in self.itm_score.parameters():
-                p.requires_grad = False
-            for p in self.pooler.parameters():
-                p.requires_grad = False
 
         vilt_utils.set_metrics(self)
         self.current_tasks = list()
