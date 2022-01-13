@@ -70,6 +70,9 @@ class TransformAndTell(pl.LightningModule):
                 p.requires_grad = False
             for p in self.pooler.parameters():
                 p.requires_grad = False
+            if config["loss_names"]["itm_wpa"] > 0:
+                for p in self.wpa_embed.parameters():
+                    p.requires_grad = False
 
         if config["loss_names"]["clm"] > 0:
             bert_config = BertConfig(
