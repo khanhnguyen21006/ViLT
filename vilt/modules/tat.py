@@ -73,6 +73,9 @@ class TransformAndTell(pl.LightningModule):
             if config["loss_names"]["itm_wpa"] > 0:
                 for p in self.wpa_embed.parameters():
                     p.requires_grad = False
+            if config["loss_names"]["nmlm"] > 0:
+                for p in self.nmlm_score.parameters():
+                    p.requires_grad = False
 
         if config["loss_names"]["clm"] > 0:
             bert_config = BertConfig(
