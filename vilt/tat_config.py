@@ -79,7 +79,7 @@ def config():
     # PL Trainer Setting
     resume_from = None
     fast_dev_run = False
-    val_check_interval = 0.125
+    val_check_interval = 0.25
     test_only = False
 
 
@@ -101,6 +101,7 @@ def task_clm():
     max_epoch = 10
     max_text_len = 512
     draw_false_image = 0
+    weight_decay = 0.01
 
 
 @ex.named_config

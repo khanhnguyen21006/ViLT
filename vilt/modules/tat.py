@@ -326,8 +326,39 @@ class TransformAndTell(pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
         vilt_utils.set_task(self)
-        ret = self(batch)
-        # ret = dict()
+        # ret = self(batch)
+        ret = dict()
+
+        # Embed the image
+        image = batch["image"]
+        X_image = self.resnet(image)
+        X_image = X_image.permute(0, 2, 3, 1)
+        B, H, W, C = X_image.shape
+        P = H * W  # number of pixels
+        X_image = X_image.view(B, P, C)
+        article_ids = batch["context_ids"]
+        article_padding_mask = article_ids == self.padding_idx
+        B, S = article_ids.shape
+
+        X_sections_hiddens = self.roberta.extract_features(article_ids, return_all_hiddens=True)
+
+        X_article = torch.stack(X_sections_hiddens, dim=2)
+        weight = F.softmax(self.bert_weight, dim=0)
+        weight = weight.unsqueeze(0).unsqueeze(1).unsqueeze(3)
+        X_article = (X_article * weight).sum(dim=2)
+        image_padding_mask = X_image.new_zeros(B, P).bool()
+        image_feats = X_image
+        article_feats = X_article
+
+        context = {
+            "image_feats": image_feats,
+            "article_feats": article_feats,
+            "image_padding_mask": image_padding_mask,
+            "article_padding_mask": article_padding_mask,
+        }
+        ret.update({
+            "context": context
+        })
 
         if self.hparams.config["loss_names"]["clm"] > 0:
             ret.update(objectives.clm_test_step(self, batch, ret["context"]))
