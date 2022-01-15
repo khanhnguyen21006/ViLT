@@ -22,7 +22,7 @@ def main(_config):
         save_top_k=1,
         verbose=True,
         monitor="val/the_metric",
-        mode="max",
+        mode="min",
         save_last=True,
     )
     logger = pl.loggers.TensorBoardLogger(

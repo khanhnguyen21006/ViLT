@@ -181,7 +181,7 @@ def task_finetune_clm():
     exp_name = "finetune_transform_and_tell_clm"
     loss_names = _loss_names({"itm_wpa": 0.5, "nmlm": 0.5, "clm": 1})
     batch_size = 128
-    max_epoch = 10
+    max_epoch = 3
     max_steps = None
     warmup_steps = 0.1
     weight_decay = 0.00001
