@@ -118,15 +118,9 @@ def compute_mlm(pl_module, batch):
 
 
 def compute_clm(pl_module, batch):
-    if pl_module.training:
-        infer = pl_module.infer(batch)
-        clm_logits = pl_module.clm_score(infer["text_feats"])
-        clm_labels = infer["text_labels"]
-    else:
-        with torch.no_grad():
-            infer = pl_module.infer(batch)
-            clm_logits = pl_module.clm_score(infer["text_feats"])
-            clm_labels = infer["text_labels"]
+    infer = pl_module.infer(batch)
+    clm_logits = pl_module.clm_score(infer["text_feats"])
+    clm_labels = infer["text_labels"]
 
     clm_loss = F.cross_entropy(
         clm_logits.view(-1, pl_module.hparams.config["vocab_size"]),

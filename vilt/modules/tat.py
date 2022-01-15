@@ -348,7 +348,27 @@ class TransformAndTell(pl.LightningModule):
         # ret = self(batch)
         ret = dict()
         if self.hparams.config["loss_names"]["clm"] > 0:
-            ret.update(objectives.compute_clm(self, batch))
+            with torch.no_grad():
+                infer = self.infer(batch)
+                clm_logits = self.clm_score(infer["text_feats"])
+                clm_labels = infer["text_labels"]
+
+                clm_loss = F.cross_entropy(
+                    clm_logits.view(-1, self.hparams.config["vocab_size"]),
+                    clm_labels.contiguous().view(-1),
+                    ignore_index=self.padding_idx,
+                )
+
+                ret.update(
+                    {
+                        "clm_loss": clm_loss,
+                        "clm_logits": clm_logits,
+                        "clm_labels": clm_labels,
+                        "clm_ids": infer["text_ids"],
+                    }
+                )
+                loss = getattr(self, f"val_clm_loss")(ret["clm_loss"])
+                self.log(f"clm/val/loss", loss)
 
         if self.hparams.config["loss_names"]["clm"] > 0:
             ret.update(objectives.clm_test_step(self, batch))
