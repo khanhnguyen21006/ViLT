@@ -343,29 +343,89 @@ class TransformAndTell(pl.LightningModule):
     def validation_epoch_end(self, outs):
         vilt_utils.epoch_wrapup(self)
 
+    def infer_test(self, batch):
+        caption_ids = batch[f"caption_ids"]
+        gt_caption_ids = batch["caption_ids"]
+        target_ids = torch.zeros_like(gt_caption_ids)
+        target_ids[:, :-1] = gt_caption_ids[:, 1:]
+        target_ids = target_ids[:, :-1]
+
+        # Embed the image
+        image = batch["image"]
+        X_image = self.resnet(image)
+        # X_image.shape == [batch_size, 2048, 7, 7]
+
+        X_image = X_image.permute(0, 2, 3, 1)
+        # X_image.shape == [batch_size, 7, 7, 2048]
+
+        # Flatten out the image
+        B, H, W, C = X_image.shape
+        P = H * W  # number of pixels
+        X_image = X_image.view(B, P, C)
+        # X_image.shape == [batch_size, 49, 2048]
+
+        article_ids = batch["context_ids"]
+        # article_ids.shape == [batch_size, seq_len]
+
+        article_padding_mask = article_ids == self.padding_idx
+        # article_padding_mask.shape == [batch_size, seq_len]
+
+        B, S = article_ids.shape
+
+        X_sections_hiddens = self.roberta.extract_features(
+            article_ids, return_all_hiddens=True)
+
+        if self.weigh_bert:
+            X_article = torch.stack(X_sections_hiddens, dim=2)
+            # X_article.shape == [batch_size, seq_len, 13, embed_size]
+
+            weight = F.softmax(self.bert_weight, dim=0)
+            weight = weight.unsqueeze(0).unsqueeze(1).unsqueeze(3)
+            # weight.shape == [1, 1, 13, 1]
+
+            X_article = (X_article * weight).sum(dim=2)
+            # X_article.shape == [batch_size, seq_len, embed_size]
+
+        else:
+            X_article = X_sections_hiddens[-1]
+            # X_article.shape == [batch_size, seq_len, embed_size]
+
+        # Create padding mask (1 corresponds to the padding index)
+        image_padding_mask = X_image.new_zeros(B, P).bool()
+
+        X_image = X_image.transpose(0, 1)
+        X_article = X_article.transpose(0, 1)
+
+        X = caption_ids
+        X = self.decoder(X, X_image, image_padding_mask, X_article, article_padding_mask)
+
+        X_feats, _ = X
+
+        text_feats = X_feats[:, :-1, :]
+
+        clm_logits = self.clm_score(text_feats)
+        clm_labels = target_ids
+
+        clm_loss = F.cross_entropy(
+            clm_logits.view(-1, self.vocab_size),
+            clm_labels.contiguous().view(-1),
+            ignore_index=self.padding_idx,
+        )
+
+        ret = {
+            "clm_loss": clm_loss,
+            "clm_logits": clm_logits,
+        }
+        return ret
+
     def test_step(self, batch, batch_idx):
         vilt_utils.set_task(self)
         # ret = self(batch)
         ret = dict()
         if self.hparams.config["loss_names"]["clm"] > 0:
             with torch.no_grad():
-                infer = self.infer(batch)
-                clm_logits = self.clm_score(infer["text_feats"])
-                clm_labels = infer["text_labels"]
-
-                clm_loss = F.cross_entropy(
-                    clm_logits.view(-1, self.hparams.config["vocab_size"]),
-                    clm_labels.contiguous().view(-1),
-                    ignore_index=self.padding_idx,
-                )
-
                 ret.update(
-                    {
-                        "clm_loss": clm_loss,
-                        "clm_logits": clm_logits,
-                        "clm_labels": clm_labels,
-                        "clm_ids": infer["text_ids"],
-                    }
+                    self.infer_test(batch)
                 )
                 loss = getattr(self, f"val_clm_loss")(ret["clm_loss"])
                 self.log(f"clm/val/loss", loss)
