@@ -128,7 +128,6 @@ def epoch_wrapup(pl_module):
             )
             getattr(pl_module, f"{phase}_{loss_name}_loss").reset()
         elif loss_name == "itm":
-
             pl_module.log(f"{loss_name}/{phase}/accuracy_epoch", getattr(pl_module, f"{phase}_{loss_name}_accuracy").compute())
             getattr(pl_module, f"{phase}_{loss_name}_accuracy").reset()
             value = getattr(pl_module, f"{phase}_{loss_name}_loss").compute()

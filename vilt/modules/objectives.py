@@ -135,6 +135,17 @@ def compute_clm(pl_module, batch):
         "clm_ids": infer["text_ids"],
     }
 
+    if not pl_module.training:
+        context = {
+            "image_feats": infer["image_feats"],
+            "article_feats": infer["article_feats"],
+            "image_padding_mask": infer["image_padding_mask"],
+            "article_padding_mask": infer["article_padding_mask"],
+        }
+        ret.update({
+            "context": context
+        })
+
     phase = "train" if pl_module.training else "val"
     loss = getattr(pl_module, f"{phase}_clm_loss")(ret["clm_loss"])
     acc = getattr(pl_module, f"{phase}_clm_accuracy")(
@@ -607,8 +618,8 @@ def compute_irtr(pl_module, batch):
 
 
 @torch.no_grad()
-def clm_test_step(pl_module, batch):
-    _, gen_ids = pl_module.generate(batch)
+def clm_test_step(pl_module, batch, context):
+    _, gen_ids = pl_module.generate(batch, context)
     # We ignore <s> and <pad>
     gen_texts = [pl_module.roberta.decode(x[x > 1]) for x in gen_ids.cpu()]
 
