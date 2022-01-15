@@ -347,9 +347,8 @@ class TransformAndTell(pl.LightningModule):
         vilt_utils.set_task(self)
         # ret = self(batch)
         ret = dict()
-        with torch.no_grad():
-            if self.hparams.config["loss_names"]["clm"] > 0:
-                ret.update(objectives.compute_clm(self, batch))
+        if self.hparams.config["loss_names"]["clm"] > 0:
+            ret.update(objectives.compute_clm(self, batch))
 
         if self.hparams.config["loss_names"]["clm"] > 0:
             ret.update(objectives.clm_test_step(self, batch))
