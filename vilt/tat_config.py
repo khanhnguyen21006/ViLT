@@ -179,7 +179,7 @@ def task_finetune_vqa_randaug():
 @ex.named_config
 def task_finetune_clm():
     exp_name = "finetune_transform_and_tell_clm"
-    loss_names = _loss_names({"itm_wpa": 0.5, "nmlm": 0.5, "clm": 1})
+    loss_names = _loss_names({"itm_wpa": 0.5, "nmlm": 1})
     batch_size = 128
     max_epoch = 3
     max_steps = None

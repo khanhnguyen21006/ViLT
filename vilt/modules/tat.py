@@ -73,9 +73,9 @@ class TransformAndTell(pl.LightningModule):
             if config["loss_names"]["itm_wpa"] > 0:
                 for p in self.wpa_embed.parameters():
                     p.requires_grad = False
-            if config["loss_names"]["nmlm"] > 0:
-                for p in self.nmlm_score.parameters():
-                    p.requires_grad = False
+            # if config["loss_names"]["nmlm"] > 0:
+            #     for p in self.nmlm_score.parameters():
+            #         p.requires_grad = False
 
         if config["loss_names"]["clm"] > 0:
             bert_config = BertConfig(
@@ -138,7 +138,7 @@ class TransformAndTell(pl.LightningModule):
 
     def infer(self, batch):
 
-        do_nmlm = "_nmlm" if self.hparams.config["loss_names"]["nmlm"] > 0 else ""
+        do_nmlm = "_nmlm" if self.hparams.config["loss_names"]["nmlm"] > 0 and self.hparams.config["load_path"] == "" and not self.hparams.config["test_only"] else ""
 
         caption_ids = batch[f"caption{do_nmlm}_ids"]
         caption_masks = batch[f"caption_masks"]
@@ -257,7 +257,7 @@ class TransformAndTell(pl.LightningModule):
                 # lprobs = self.decoder.get_normalized_probs(
                 #     decoder_out, log_probs=True)
                 # lprobs.shape == [batch_size, 1, vocab_size]
-                lprobs = self.clm_score(decoder_out)
+                lprobs = self.clm_score(decoder_out) if self.hparams.config["loss_names"]["clm"] > 0 else self.nmlm_score(decoder_out)
 
                 lprobs = lprobs.squeeze(1)
                 # lprobs.shape == [batch_size, vocab_size]
@@ -330,7 +330,7 @@ class TransformAndTell(pl.LightningModule):
         output = self(batch)
         ret = dict()
 
-        if self.hparams.config["loss_names"]["clm"] > 0:
+        if self.hparams.config["loss_names"]["clm"] > 0 or self.hparams.config["loss_names"]["nmlm"] > 0:
             ret.update(objectives.clm_test_step(self, batch, output["context"]))
 
         return ret
@@ -338,7 +338,7 @@ class TransformAndTell(pl.LightningModule):
     def test_epoch_end(self, outs):
         model_name = self.hparams.config["load_path"].split("/")[-1][:-5]
 
-        if self.hparams.config["loss_names"]["clm"] > 0:
+        if self.hparams.config["loss_names"]["clm"] > 0 or self.hparams.config["loss_names"]["nmlm"] > 0:
             objectives.clm_test_wrapup(outs, self.hparams.config["log_dir"])
         vilt_utils.epoch_wrapup(self)
 
