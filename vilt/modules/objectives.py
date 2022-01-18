@@ -175,6 +175,17 @@ def compute_nmlm(pl_module, batch):
         "nmlm_ids": infer["text_ids"],
     }
 
+    if not pl_module.training:
+        context = {
+            "image_feats": infer["image_feats"],
+            "article_feats": infer["article_feats"],
+            "image_padding_mask": infer["image_padding_mask"],
+            "article_padding_mask": infer["article_padding_mask"],
+        }
+        ret.update({
+            "context": context
+        })
+
     phase = "train" if pl_module.training else "val"
     loss = getattr(pl_module, f"{phase}_nmlm_loss")(ret["nmlm_loss"])
     acc = getattr(pl_module, f"{phase}_nmlm_accuracy")(
@@ -831,10 +842,12 @@ def clm_test_wrapup(outs, serialization_dir):
         gen_texts_2 = [re.sub(r'[^\w\s]', '', t) for t in gens]
         captions_2 = [re.sub(r'[^\w\s]', '', t) for t in caps]
 
-        for gen, ref, img_id, img_url, cntx in zip(gen_texts_2, captions_2, ids, urls, cntxs):
+        for ref, gen, ref_2, gen_2, img_id, img_url, cntx in zip(caps, gens, captions_2, gen_texts_2, ids, urls, cntxs):
             sam_obj = {
                 'caption': ref,
                 'generation': gen,
+                'caption_2': ref_2,
+                'generation_2': gen_2,
                 'context': cntx,
                 'img_id': img_id,
                 'img_url': img_url,
@@ -861,7 +874,7 @@ def clm_test_wrapup(outs, serialization_dir):
             n_samples = 0
             for obj in jsons:
                 bleu_scorer = BleuScorer(n=4)
-                bleu_scorer += (obj['generation'], [obj['caption']])
+                bleu_scorer += (obj['generation_2'], [obj['caption_2']])
                 score, _ = bleu_scorer.compute_score(option='closest')
                 metrics['bleu-1'] += score[0] * 100
                 metrics['bleu-2'] += score[1] * 100
