@@ -223,13 +223,36 @@ class TransformAndTell(pl.LightningModule):
 
         return ret
 
-    def generate(self, batch, context):
+    def generate(self, batch):
         with torch.no_grad():
             caption_ids = batch["caption_ids"]
-            X_image = context["image_feats"].transpose(0, 1)
-            X_article = context["article_feats"].transpose(0, 1)
-            image_padding_mask = context["image_padding_mask"]
-            article_padding_mask = context["article_padding_mask"]
+
+            # Embed the image
+            image = batch["image"]
+            X_image = self.resnet(image)
+            X_image = X_image.permute(0, 2, 3, 1)
+            B, H, W, C = X_image.shape
+            P = H * W  # number of pixels
+            X_image = X_image.view(B, P, C)
+            article_ids = batch["context_ids"]
+            article_padding_mask = article_ids == self.padding_idx
+
+            B, S = article_ids.shape
+
+            X_sections_hiddens = self.roberta.extract_features(
+                article_ids, return_all_hiddens=True)
+
+            if self.weigh_bert:
+                X_article = torch.stack(X_sections_hiddens, dim=2)
+                weight = F.softmax(self.bert_weight, dim=0)
+                weight = weight.unsqueeze(0).unsqueeze(1).unsqueeze(3)
+                X_article = (X_article * weight).sum(dim=2)
+            else:
+                X_article = X_sections_hiddens[-1]
+            image_padding_mask = X_image.new_zeros(B, P).bool()
+
+            X_image = X_image.transpose(0, 1)
+            X_article = X_article.transpose(0, 1)
 
             incremental_state = {}
             seed_input = caption_ids[:, 0:1]
@@ -331,7 +354,7 @@ class TransformAndTell(pl.LightningModule):
         ret = dict()
 
         if self.hparams.config["loss_names"]["clm"] > 0 or self.hparams.config["loss_names"]["nmlm"] > 0:
-            ret.update(objectives.clm_test_step(self, batch, output["context"]))
+            ret.update(objectives.clm_test_step(self, batch))
 
         return ret
 
