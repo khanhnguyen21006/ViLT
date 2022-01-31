@@ -1,14 +1,19 @@
-import math
-import os
-import torch
 import torch.nn as nn
 import torch.onnx.operators
 import torch.nn.functional as F
-
+import string
 from collections import defaultdict
 from typing import Dict
 
 import pytorch_lightning as pl
+
+import hashlib
+import math
+import os
+import textstat
+import torch
+from nltk.tokenize import word_tokenize
+from spacy.tokens import Doc
 
 
 class SinusoidalPositionalEmbedding(nn.Module):
@@ -265,3 +270,135 @@ class CheckpointEveryNSteps(pl.Callback):
                 filename = f"{self.prefix}_epoch-{epoch}_global_step-{global_step}.ckpt"
             ckpt_path = os.path.join(trainer.checkpoint_callback.dirpath, filename)
             trainer.save_checkpoint(ckpt_path)
+
+
+def get_readability_scores(text):
+    scores = {
+        'flesch_reading_ease': textstat.flesch_reading_ease(text),
+        'flesch_kincaid_grade': textstat.flesch_kincaid_grade(text),
+        'gunning_fog': textstat.gunning_fog(text),
+        'smog_index': textstat.smog_index(text),
+        'automated_readability_index': textstat.automated_readability_index(text),
+        'coleman_liau_index': textstat.coleman_liau_index(text),
+        'linsear_write_formula': textstat.linsear_write_formula(text),
+        'dale_chall_readability_score': textstat.dale_chall_readability_score(text),
+        'text_standard': textstat.text_standard(text, float_output=True),
+        'difficult_words': textstat.difficult_words(text) / len(text.split()),
+    }
+    return scores
+
+
+def spacize(text, cache, nlp):
+    key = hashlib.sha256(text.encode('utf-8')).hexdigest()
+    if key not in cache:
+        cache[key] = nlp(text).to_bytes()
+
+    return Doc(nlp.vocab).from_bytes(cache[key])
+
+
+def get_entities(doc):
+    entities = []
+    for ent in doc.ents:
+        entities.append({
+            'text': ent.text,
+            'label': ent.label_,
+            'tokens': [{'text': tok.text, 'pos': tok.pos_} for tok in ent],
+        })
+    return entities
+
+
+def get_proper_nouns(doc):
+    proper_nouns = []
+    for token in doc:
+        if token.pos_ == 'PROPN':
+            proper_nouns.append(token.text)
+    return proper_nouns
+
+
+def get_narrative_productivity(text):
+    doc = word_tokenize(text)
+    doc = list(filter(is_word, doc))
+    n_words = len(doc)
+    n_terms = len(set(doc))
+
+    scores = {
+        'basic_ttr': basic_ttr(n_terms, n_words),
+        'root_ttr': root_ttr(n_terms, n_words),
+        'corrected_ttr': corrected_ttr(n_terms, n_words),
+        'herdan': herdan(n_terms, n_words),
+        'summer': summer(n_terms, n_words),
+        'maas': maas(n_terms, n_words),
+    }
+
+    return scores
+
+
+def basic_ttr(n_terms, n_words):
+    """ Type-token ratio (TTR) computed as t/w, where t is the number of unique
+    terms/vocab, and w is the total number of words.
+    (Chotlos 1944, Templin 1957)
+    """
+    if n_words == 0:
+        return 0
+    return n_terms / n_words
+
+
+def root_ttr(n_terms, n_words):
+    """ Root TTR (RTTR) computed as t/sqrt(w), where t is the number of unique terms/vocab,
+        and w is the total number of words.
+        Also known as Guiraud's R and Guiraud's index.
+        (Guiraud 1954, 1960)
+    """
+    if n_words == 0:
+        return 0
+    return n_terms / math.sqrt(n_words)
+
+
+def corrected_ttr(n_terms, n_words):
+    """ Corrected TTR (CTTR) computed as t/sqrt(2 * w), where t is the number of unique terms/vocab,
+        and w is the total number of words.
+        (Carrol 1964)
+    """
+    if n_words == 0:
+        return 0
+    return n_terms / math.sqrt(2 * n_words)
+
+
+def herdan(n_terms, n_words):
+    """ Computed as log(t)/log(w), where t is the number of unique terms/vocab, and w is the
+        total number of words.
+        Also known as Herdan's C.
+        (Herdan 1960, 1964)
+    """
+    if n_words <= 1:
+        return 0
+    return math.log(n_terms) / math.log(n_words)
+
+
+def summer(n_terms, n_words):
+    """ Computed as log(log(t)) / log(log(w)), where t is the number of unique terms/vocab, and
+        w is the total number of words.
+        (Summer 1966)
+    """
+    try:
+        math.log(math.log(n_terms)) / math.log(math.log(n_words))
+    except ValueError:
+        return 0
+
+
+def maas(n_terms, n_words):
+    """ Maas's TTR, computed as (log(w) - log(t)) / (log(w) * log(w)), where t is the number of
+        unique terms/vocab, and w is the total number of words. Unlike the other measures, lower
+        maas measure indicates higher lexical richness.
+        (Maas 1972)
+    """
+    # We cap this score at 0.2
+    if n_words <= 1:
+        return 0.2
+    score = (math.log(n_words) - math.log(n_terms)) / \
+        (math.log(n_words) ** 2)
+    return min(score, 0.2)
+
+
+def is_word(tok):
+    return tok not in string.punctuation

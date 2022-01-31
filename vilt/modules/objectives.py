@@ -7,11 +7,13 @@ import json
 import tqdm
 import functools
 import re
+import spacy
 from torch.utils.data.distributed import DistributedSampler
 from einops import rearrange
 from pycocoevalcap.bleu.bleu_scorer import BleuScorer
-
+import pickle
 from vilt.modules.dist_utils import all_gather
+from vilt.modules.tat_utils import get_proper_nouns, get_entities, get_readability_scores, get_narrative_productivity, spacize
 
 
 def cost_matrix_cosine(x, y, eps=1e-5):
@@ -805,6 +807,13 @@ def vqa_test_wrapup(outs, model_name):
 def clm_test_wrapup(outs, serialization_dir):
     rank = torch.distributed.get_rank()
     out_path = os.path.join(serialization_dir, f'generations_{rank}.jsonl')
+    cache_path = os.path.join(serialization_dir, 'evaluation_cache.pkl')
+    if os.path.exists(cache_path):
+        with open(cache_path, 'rb') as f:
+            cache = pickle.load(f)
+    else:
+        cache = {}
+    nlp = spacy.load("en_core_web_lg")
     with open(out_path, 'a') as f:
         caps, gens, ids, urls, cntxs = list(), list(), list(), list(), list()
         for out in outs:
@@ -819,14 +828,29 @@ def clm_test_wrapup(outs, serialization_dir):
         captions_2 = [re.sub(r'[^\w\s]', '', t) for t in caps]
 
         for ref, gen, ref_2, gen_2, img_id, img_url, cntx in zip(caps, gens, captions_2, gen_texts_2, ids, urls, cntxs):
+            caption_doc = spacize(ref, cache, nlp)
+            gen_doc = nlp(gen)
+            context_doc = spacize(cntx, cache, nlp)
             sam_obj = {
                 'caption': ref,
                 'generation': gen,
+                'raw_caption': ref,
+                'copied_texts': '',
                 'caption_2': ref_2,
                 'generation_2': gen_2,
                 'context': cntx,
                 'img_id': img_id,
                 'img_url': img_url,
+                'caption_names': get_proper_nouns(caption_doc),
+                'generated_names': get_proper_nouns(gen_doc),
+                'context_names': get_proper_nouns(context_doc),
+                'caption_entities': get_entities(caption_doc),
+                'generated_entities': get_entities(gen_doc),
+                'context_entities': get_entities(context_doc),
+                'caption_readability': get_readability_scores(ref),
+                'gen_readability': get_readability_scores(gen),
+                'caption_np': get_narrative_productivity(ref),
+                'gen_np': get_narrative_productivity(gen),
             }
             f.write(f'{json.dumps(sam_obj)}\n')
 
